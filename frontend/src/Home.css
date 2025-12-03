@@ -1,0 +1,263 @@
+.navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: none;
+  padding: 24px 48px 0 48px;
+}
+
+.logo {
+  font-family: "Cormorant Garamond", serif;
+  font-size: 2rem;
+  color: #42512b;
+  letter-spacing: 2px;
+}
+
+.nav-links {
+  display: flex;
+  gap: 32px;
+  list-style: none;
+}
+
+.nav-links a {
+  color: #42512b;
+  text-decoration: none;
+  font-size: 1.13rem;
+  transition: color 0.25s;
+}
+.nav-links a:hover {
+  color: #5b7648;
+}
+
+.auth-buttons {
+  display: flex;
+  gap: 14px;
+}
+.signin-btn,
+.signup-btn {
+  outline: none;
+  border-radius: 22px;
+  border: none;
+  padding: 8px 24px;
+  font-size: 1rem;
+  background: #e0e7d5;
+  color: #42512b;
+  cursor: pointer;
+  transition: background 0.18s;
+  text-decoration: none;
+}
+.signin-btn:hover {
+  background: #c6dabf;
+}
+.signup-btn {
+  background: #42512b;
+  color: #fff;
+}
+.signup-btn:hover {
+  background: #5b7648;
+}
+
+.hero-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 60px 7vw 38px 7vw;
+  background: none;
+}
+.hero-content {
+  flex: 1;
+  max-width: 480px;
+}
+.hero-content h1 {
+  font-size: 2.7rem;
+  letter-spacing: 2px;
+  color: #42512b;
+  margin-bottom: 22px;
+  font-family: "Cormorant Garamond", serif;
+}
+.hero-content p {
+  font-size: 1.18rem;
+  color: #3e4728;
+  margin-bottom: 24px;
+}
+.cta-btn {
+  background: #42512b;
+  color: #fff;
+  padding: 12px 32px;
+  border-radius: 24px;
+  text-decoration: none;
+  font-size: 1.15rem;
+  transition: background 0.18s;
+}
+.cta-btn:hover {
+  background: #5b7648;
+}
+
+.hero-leaf {
+  flex: 1;
+  text-align: right;
+}
+.hero-leaf img {
+  height: 320px;
+  object-fit: contain;
+  mix-blend-mode: multiply; /* try screen, overlay, or lighten too */
+}
+
+
+/* Shared section wrapper */
+.info-section {
+  padding: 70px 20px;
+  display: flex;
+  align-items:center;
+  justify-content:space-evenly;
+  gap: 40px;
+}
+
+/* Shared text block */
+.section-text {
+  max-width: 50%;
+}
+
+.section-heading {
+  font-size: 1.8rem;
+  font-weight: bold;
+  font-family: "Times New Roman", Times, serif;
+  color: #42512b;
+  margin-bottom: 12px;
+}
+
+.section-desc {
+  font-size: 1.1rem;
+  font-family: "Times New Roman", Times, serif;
+  color: #42512b;
+  margin-bottom: 10px;
+  line-height: 1.6;
+}
+
+/* Shared image block */
+.section-image img {
+  width: 400px;
+  height: auto;
+  border-radius: 8px;
+}
+
+/* Responsive stacking */
+@media (max-width: 768px) {
+  .info-section {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .section-text {
+    max-width: 100%;
+  }
+
+  .section-image img {
+    width: 100%;
+    max-width: 400px;
+  }
+}
+
+
+.footer {
+  background-color: #f4f4f4;
+  padding: 40px 20px 20px;
+  font-family: 'Segoe UI', sans-serif;
+  color: #333;
+}
+
+.footer-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 30px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.footer-brand {
+  flex: 1;
+  min-width: 200px;
+}
+
+.footer-logo {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #42512b;
+  margin-bottom: 8px;
+}
+
+.footer-tagline {
+  font-size: 1rem;
+  color: #666;
+}
+
+.footer-links {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  padding-top: 50px;
+  font-weight: bolder;
+  padding-left: 90px;
+}
+
+.footer-links a {
+  text-decoration: none;
+  color: #333;
+  font-size: 1rem;
+  transition: color 0.3s ease;
+}
+
+.footer-links a:hover {
+  color: #42512b;
+}
+
+.footer-social {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  flex-direction: row;
+  gap: 15px;
+  font-size: 2.3rem;
+  padding-top: 25px;
+  padding-left: 100px;
+
+}
+
+.footer-social a {
+  color: #333;
+  transition: color 0.3s ease;
+}
+
+.footer-social a:hover {
+  color: #42512b;
+}
+
+.footer-bottom {
+  text-align: center;
+  margin-top: 30px;
+  font-size: 0.9rem;
+  color: #777;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .footer-container {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .footer-links,
+  .footer-social {
+    align-items: center;
+  }
+}
+
+/*About page css*/
+
+
+
