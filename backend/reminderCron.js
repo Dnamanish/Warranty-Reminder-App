@@ -10,7 +10,7 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-cron.schedule('* * * * *', async () => {
+cron.schedule('0 0 1 * *', async () => {
   console.log('Cron job running...');
   const now = new Date();
   
@@ -36,7 +36,7 @@ cron.schedule('* * * * *', async () => {
   await transporter.sendMail({
     to: warranty.userEmail,
     subject: 'Warranty Expiry Reminder',
-    text: `Hello,\n\nYour warranty for ${warranty.productName} expires on ${warranty.warrantyEndDate}.\n\nPlease take necessary action.\n\n- Your Warranty App`
+    text: `Hello,\nYour warranty for ${warranty.productName} expires on ${warranty.warrantyEndDate}.\nPlease take necessary action.\n\n- Your Warranty App`
   });
   warranty.lastRemindedAt = now;
   await warranty.save();
