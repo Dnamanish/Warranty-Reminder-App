@@ -1,20 +1,22 @@
+* {
+  font-family: "Cormorant Garamond", serif;
+}
+
+
+/* Page Container */
 .dashboard-modern-container {
   font-family: 'Segoe UI', sans-serif;
   min-height: 100vh;
   background: #f5f6fa;
 }
 
+/* Header */
 .dashboard-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 2rem 3rem;
-  background: #fff;
-  box-shadow: 0 2px 8px #eee;
-}
-
-.dashboard-header h2 {
-  margin: 0;
+  /* box-shadow: 0 2px 8px #eee; */
 }
 
 .dashboard-logout {
@@ -26,18 +28,20 @@
   cursor: pointer;
 }
 
+/* Main Section */
 .dashboard-modern-main {
   max-width: 1100px;
   margin: 3rem auto 0 auto;
   background: #fff;
   border-radius: 16px;
   box-shadow: 0 2px 12px #eee;
-  padding: 2.5rem 2rem 2rem 2rem;
+  padding: 2.5rem 2rem;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
+/* Upload Area */
 .dashboard-upload-area {
   width: 100%;
   min-height: 320px;
@@ -50,7 +54,6 @@
   justify-content: center;
   transition: border-color 0.2s;
   margin-bottom: 2rem;
-  position: relative;
 }
 
 .dashboard-upload-area.drag-active {
@@ -65,12 +68,6 @@
   gap: 8px;
 }
 
-.dashboard-upload-cloud p {
-  font-size: 1.1rem;
-  color: #636e72;
-  margin: 12px 0 0 0;
-}
-
 .dashboard-upload-btn {
   margin-top: 10px;
   padding: 0.5rem 1.5rem;
@@ -79,39 +76,13 @@
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 1rem;
-  font-weight: 500;
-  transition: background 0.2s;
 }
 
-.dashboard-upload-btn:hover {
-  background: #0652dd;
+.upload-submit-btn {
+  margin-top: 16px;
 }
 
-.dashboard-upload-hint {
-  color: #636e72;
-  font-size: 0.95rem;
-  margin-top: 4px;
-}
-
-.dashboard-upload-types {
-  color: #b2bec3;
-  font-size: 0.9rem;
-  margin-top: 2px;
-}
-
-.dashboard-upload-selected {
-  color: #00b894;
-  font-size: 1rem;
-  margin-top: 8px;
-}
-
-.dashboard-message {
-  color: #00b894;
-  margin-bottom: 1rem;
-  text-align: center;
-}
-
+/* File Cards */
 .dashboard-files {
   display: flex;
   flex-wrap: wrap;
@@ -121,27 +92,51 @@
 }
 
 .dashboard-file-card {
-  width: 200px;
+  width: 240px;
   background: #f1f2f6;
-  border-radius: 8px;
-  box-shadow: 0 1px 4px #dfe6e9;
+  border-radius: 12px;
   padding: 16px;
+  box-shadow: 0 1px 4px #dfe6e9;
   text-align: center;
 }
-
-.dashboard-file-img {
-  width: 100%;
-  height: 120px;
-  object-fit: cover;
-  border-radius: 6px;
+/* Hover Effect */
+.dashboard-file-card {
+  transition: transform 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
 }
 
-.dashboard-file-name {
-  margin-top: 8px;
-  font-weight: 500;
+.dashboard-file-card:hover {
+  transform: translateY(-6px);
+  background-color: #E8EFE6;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
 }
 
-.dashboard-file-link {
+
+.pdf-icon {
+  font-size: 120px;
+  color: #636e72;
+  margin-bottom: 20px;
+}
+
+/* Info Section inside Cards */
+.dashboard-file-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+}
+
+.label {
+  font-weight: 600;
+  color: #2d3436;
+}
+
+.value {
   color: #0984e3;
-  font-size: 14px;
+  font-weight: 500;
 }

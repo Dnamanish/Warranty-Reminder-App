@@ -1,8 +1,16 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link ,useNavigate} from "react-router-dom";
 import "../Home.css";
 
 const Navbar = () => {
+  const navigate = useNavigate();
+  const isloggedIn = localStorage.getItem("loggedInUser") !== null;
+
+  const handleLogout = () => {
+    localStorage.removeItem("loggedInUser");
+    navigate("/login");
+  };
+
   return (
     <nav className="navbar">
       <div className="logo">Warranty Reminder</div>
@@ -20,10 +28,18 @@ const Navbar = () => {
           <Link to="/dashboard">Dashboard</Link>
         </li>
       </ul>
+
+
       <div className="auth-buttons">
-        <Link to="/signup" className="signup-btn">
-          Sign Up
-        </Link>
+        {!isloggedIn ? (
+          <Link to="/signup" className="signup-btn">
+            Sign Up
+          </Link>
+        ) : (
+          <button onClick={handleLogout} className="logout-btn">
+            Logout
+          </button>
+        )}
       </div>
     </nav>
   );

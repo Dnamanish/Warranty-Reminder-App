@@ -1,3 +1,7 @@
+* {
+  font-family: "Cormorant Garamond", serif;
+}
+
 .navbar {
   display: flex;
   align-items: center;

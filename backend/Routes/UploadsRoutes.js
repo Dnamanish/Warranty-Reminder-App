@@ -7,6 +7,7 @@ const pdfParse = require("pdf-parse");
 const tesseract = require("tesseract.js");
 const fs = require("fs");
 const warranty = require("../models/warranty");
+const { log } = require("console");
 
 // storage for multer
 const storage = multer.diskStorage({
@@ -18,6 +19,111 @@ const storage = multer.diskStorage({
   },
 });
 const upload = multer({ storage: storage });
+
+// helper function to get product name
+function extractProductName(text) {
+  const productKeywords = [
+    "Refrigerator",
+    "Fridge",
+    "Refrig",
+    "Freezer",
+    "Mini Fridge",
+    "Double Door",
+    "Single Door",
+    "Deep Freezer",
+    "Cooling Unit",
+    "Laptop",
+    "Notebook",
+    "Ultrabook",
+    "MacBook",
+    "Computer",
+    "PC",
+    "Portable Computer",
+    "AC",
+    "A/C",
+    "Air Conditioner",
+    "Room AC",
+    "Split AC",
+    "Window AC",
+    "Air Cooling Unit",
+    "Television",
+    "TV",
+    "LED TV",
+    "LCD TV",
+    "Smart TV",
+    "Android TV",
+    "OLED TV",
+    "4K TV",
+    "Washing Machine",
+    "Washer",
+    "Automatic Washer",
+    "Front Load",
+    "Top Load",
+    "Mobile",
+    "Smartphone",
+    "iPhone",
+    "Android Phone",
+    "Microwave",
+    "Oven",
+    "Microwave Oven",
+    "Convection Oven",
+    "Ceiling Fan",
+    "Table Fan",
+    "Pedestal Fan",
+    "Electric Fan",
+    "Air Cooler",
+    "Mixer",
+    "Mixer Grinder",
+    "Grinder",
+    "Blender",
+    "Juicer",
+    "Electric Kettle",
+    "Toaster",
+    "Printer",
+    "Scanner",
+    "Monitor",
+    "Desktop",
+    "Speaker",
+    "Soundbar",
+    "Headphones",
+  ];
+
+  const lines = text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  for (const keyword of productKeywords) {
+    const keyLower = keyword.toLowerCase();
+
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].toLowerCase().includes(keyLower)) {
+        let fullLine = lines[i];
+
+        if (i > 0 && !lines[i - 1].match(/qty|price|mrp|amount/i)) {
+          fullLine = lines[i - 1] + " " + fullLine;
+        }
+
+        fullLine = fullLine.replace(
+          /\b(qty|quantity|price|amount)[:\s]*\d+/gi,
+          ""
+        );
+        fullLine = fullLine.replace(/\b\d+\s*(pcs|units?)\b/gi, "");
+        fullLine = fullLine.replace(/\s+/g, " ").trim();
+
+        return {
+          fullLine: fullLine, // full product name
+          productCategory: keyword, // matching keyword
+        };
+      }
+    }
+  }
+
+  return {
+    fullLine: "unknown",
+    productCategory: "unknown",
+  };
+}
 
 router.post("/upload", upload.single("file"), async (req, res) => {
   if (!req.file) {
@@ -40,12 +146,12 @@ router.post("/upload", upload.single("file"), async (req, res) => {
     }
 
     // extract product name
-    const productMatch = text.match(/Laptop Model\s*([A-Za-z0-9\- ]+)/i);
-    const productName = productMatch ? productMatch[1].trim() : "unknown";
+    const productName = extractProductName(text);
 
     // extract purchased date first
     const purchaseDateMatch = text.match(/\b\d{2}[\/\-]\d{2}[\/\-]\d{4}\b/);
     purchaseDate = purchaseDateMatch ? purchaseDateMatch[0] : null;
+
 
     // extract warranty period
     const numYearMatch = text.match(/(\d+)\s*(year|month)s?/i);
@@ -78,17 +184,24 @@ router.post("/upload", upload.single("file"), async (req, res) => {
       warrantyEndDate = endDate.toISOString().slice(0, 10);
     }
 
+
     await warranty.create({
-      userEmail: req.body.email || "test@gmail.com",
+      userEmail: req.body.email || "test49754@gmail.com",
       fileName: req.file.filename,
-      originalName:req.file.originalname,
+      originalName: req.file.originalname,
       warrantyEndDate: warrantyEndDate,
-      productName: productName,
+      purchaseDate,
+      productName: {
+        fullLine: productName.fullLine,
+        productCategory: productName.productCategory,
+      },
       notified: false,
     });
 
     res.status(200).json({
       message: "File uploaded and info extracted",
+      productCategory: productName.productCategory,
+
       purchaseDate,
       warrantyPeriod: warrantyPeriod
         ? `${warrantyPeriod.value} ${warrantyPeriod.unit}`
@@ -115,6 +228,32 @@ router.get("/myfiles", async (req, res) => {
     res.json(files);
   } catch (err) {
     res.status(500).json({ message: "Server error" });
+  }
+});
+
+// for deleting previously uploaded files
+router.delete("/delete/:id", async (req, res) => {
+  try {
+    const fileId = req.params.id;
+    const file = await warranty.findById(fileId);
+    if (!file) {
+      return res.status(404).json({message:"File not found !!!!"});
+    }
+
+    // delete from uploaded folder
+    const filePath = path.join(__dirname, "../uploads", file.fileName);
+
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    // delete form db
+    await warranty.findByIdAndDelete(fileId);
+
+    res.json({ message: "File deleted successfully" });
+  } catch (err) {
+    console.error("DELETE ERROR:", err);
+    res.status(500).json({ message: "Server error while deleting file" });
   }
 });
 

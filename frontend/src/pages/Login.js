@@ -14,12 +14,11 @@ const Login = () => {
 
   const handlechange = (e) => {
     const { name, value } = e.target;
-    console.log(name, value);
     const copyLoginInfo = { ...LoginInfo };
     copyLoginInfo[name] = value;
     setLoginInfo(copyLoginInfo);
   };
-  console.log("LoginInfo ->", LoginInfo);
+  // console.log("LoginInfo ->", LoginInfo);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -51,7 +50,7 @@ const Login = () => {
       } else if (success === false) {
         handleerror(message);
       }
-      console.log(result);
+      // console.log(result);
     } catch (err) {
       handleerror(err);
     }

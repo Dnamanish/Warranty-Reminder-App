@@ -15,12 +15,11 @@ const Signup = () => {
 
   const handlechange = (e) => {
     const { name, value } = e.target;
-    console.log(name, value);
+    // console.log(name, value);
     const copysignupInfo = { ...signupInfo };
     copysignupInfo[name] = value;
     setSignupInfo(copysignupInfo);
   };
-  console.log("signupInfo ->", signupInfo);
 
   const handlesignup = async (e) => {
     e.preventDefault();
@@ -52,7 +51,7 @@ const Signup = () => {
       } else if (success === false) {
         handleerror(message);
       }
-      console.log(result);
+      
     } catch (err) {
       handleerror(err);
     }
