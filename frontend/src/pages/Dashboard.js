@@ -18,7 +18,7 @@ function Dashboard() {
     if (!email) return;
 
     const res = await fetch(
-      `http://localhost:8080/dashboard/myfiles?email=${email}`
+      `https://warranty-reminder-app.onrender.com/dashboard/myfiles?email=${email}`
     );
     const data = await res.json();
 
@@ -77,7 +77,7 @@ function Dashboard() {
     formData.append("email", localStorage.getItem("loggedInUser"));
 
     try {
-      const res = await fetch("http://localhost:8080/dashboard/upload", {
+      const res = await fetch("https://warranty-reminder-app.onrender.com/dashboard/upload", {
         method: "POST",
         body: formData,
       });
@@ -123,7 +123,7 @@ function Dashboard() {
 
   const handleDelete = async (id) => {
     try {
-      const res = await fetch(`http://localhost:8080/dashboard/delete/${id}`, {
+      const res = await fetch(`https://warranty-reminder-app.onrender.com/dashboard/delete/${id}`, {
         method: "DELETE",
       });
       const data = await res.json();
