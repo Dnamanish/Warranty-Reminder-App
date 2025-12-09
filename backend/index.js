@@ -13,6 +13,11 @@ app.use('/uploads', express.static('uploads'));
 
 const PORT= process.env.PORT || 8080;
 app.use(bodyParser.json())
+
+const allowedOrigins = [
+  'http://localhost:3000', 
+  'https://warranty-reminder-app.vercel.app/' 
+];
 app.use(cors())
 
 app.use('/auth', AuthRouter)
