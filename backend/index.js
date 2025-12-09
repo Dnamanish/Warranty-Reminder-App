@@ -19,7 +19,7 @@ app.use(
     origin: [
       "http://localhost:3000",
       "http://localhost:5173", 
-      "https://warranty-reminder-app.vercel.app/", 
+      "https://warranty-reminder-app.vercel.app", 
     ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
