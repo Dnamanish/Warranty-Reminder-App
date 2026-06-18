@@ -37,17 +37,13 @@ function extractProductName(text) {
     "Ultrabook",
     "MacBook",
     "Computer",
-    "PC",
     "Portable Computer",
-    "AC",
-    "A/C",
     "Air Conditioner",
     "Room AC",
     "Split AC",
     "Window AC",
     "Air Cooling Unit",
     "Television",
-    "TV",
     "LED TV",
     "LCD TV",
     "Smart TV",
@@ -106,10 +102,19 @@ function extractProductName(text) {
 
         fullLine = fullLine.replace(
           /\b(qty|quantity|price|amount)[:\s]*\d+/gi,
-          ""
+          "",
         );
-        fullLine = fullLine.replace(/\b\d+\s*(pcs|units?)\b/gi, "");
+
+        // NEW RULES
+        fullLine = fullLine.replace(/^\d+\./, ""); // remove "1."
+        fullLine = fullLine.replace(/\d+%.*$/, ""); // remove "18%1"
+        fullLine = fullLine.replace(/₹.*$/, ""); // remove prices
+        fullLine = fullLine.replace(/([A-Za-z])\d+$/, "$1"); // Laptop1 -> Laptop
+
         fullLine = fullLine.replace(/\s+/g, " ").trim();
+
+        console.log("MATCHED KEYWORD:", keyword);
+        console.log("MATCHED LINE:", lines[i]);
 
         return {
           fullLine: fullLine, // full product name
@@ -148,10 +153,19 @@ router.post("/upload", upload.single("file"), async (req, res) => {
     // extract product name
     const productName = extractProductName(text);
 
-    // extract purchased date first
-    const purchaseDateMatch = text.match(/\b\d{2}[\/\-]\d{2}[\/\-]\d{4}\b/);
-    purchaseDate = purchaseDateMatch ? purchaseDateMatch[0] : null;
 
+    // extract purchased date first
+    // DD/MM/YYYY or DD-MM-YYYY
+    let purchaseDateMatch = text.match(/\b\d{2}[\/\-]\d{2}[\/\-]\d{4}\b/);
+
+    if (!purchaseDateMatch) {
+      // Month name dates
+      purchaseDateMatch = text.match(
+        /(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4}/i,
+      );
+    }
+
+    purchaseDate = purchaseDateMatch ? purchaseDateMatch[0] : null;
 
     // extract warranty period
     const numYearMatch = text.match(/(\d+)\s*(year|month)s?/i);
@@ -162,7 +176,7 @@ router.post("/upload", upload.single("file"), async (req, res) => {
       };
     } else {
       const wordYearMatch = text.match(
-        /(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s*(year|month)s?/i
+        /(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s*(year|month)s?/i,
       );
       if (wordYearMatch) {
         const num = wordToNumber(wordYearMatch[1]);
@@ -174,45 +188,57 @@ router.post("/upload", upload.single("file"), async (req, res) => {
 
     // 3. Calculate warranty end date
     if (purchaseDate && warrantyPeriod) {
-      const [day, month, year] = purchaseDate.split(/[\/\-]/).map(Number);
-      let endDate = new Date(year, month - 1, day);
-      if (warrantyPeriod.unit.startsWith("year")) {
+      let endDate;
+
+      if (purchaseDate.includes("/")) {
+        const [day, month, year] = purchaseDate.split(/[\/\-]/).map(Number);
+        endDate = new Date(year, month - 1, day);
+      } else {
+        endDate = new Date(purchaseDate);
+      }
+
+      if (warrantyPeriod.unit.toLowerCase().startsWith("year")) {
         endDate.setFullYear(endDate.getFullYear() + warrantyPeriod.value);
-      } else if (warrantyPeriod.unit.startsWith("month")) {
+      } else if (warrantyPeriod.unit.toLowerCase().startsWith("month")) {
         endDate.setMonth(endDate.getMonth() + warrantyPeriod.value);
       }
+
       warrantyEndDate = endDate.toISOString().slice(0, 10);
     }
 
+    // test
+    console.log("Purchase Date:", purchaseDate);
+    console.log("Warranty Period:", warrantyPeriod);
+    console.log("Warranty End:", warrantyEndDate);
+    console.log("DATE MATCH:", purchaseDateMatch);
 
-    await warranty.create({
-      userEmail: req.body.email || "test49754@gmail.com",
-      fileName: req.file.filename,
-      originalName: req.file.originalname,
-      warrantyEndDate: warrantyEndDate,
-      purchaseDate,
-      productName: {
-        fullLine: productName.fullLine,
-        productCategory: productName.productCategory,
-      },
-      notified: false,
-    });
+    // await warranty.create({
+    //   userEmail: req.body.email ||,
+    //   fileName: req.file.filename,
+    //   originalName: req.file.originalname,
+    //   warrantyEndDate: warrantyEndDate,
+    //   purchaseDate,
+    //   productName: {
+    //     fullLine: productName.fullLine,
+    //     productCategory: productName.productCategory,
+    //   },
+    //   notified: false,
+    // });
 
     res.status(200).json({
       message: "File uploaded and info extracted",
       productCategory: productName.productCategory,
+      productFullName: productName.fullLine,
 
       purchaseDate,
       warrantyPeriod: warrantyPeriod
         ? `${warrantyPeriod.value} ${warrantyPeriod.unit}`
         : null,
       warrantyEndDate,
-      textPreview: text.substring(0, 200),
+      textPreview: text, // text.substring(0, 200)
     });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error processing file", error: error.message });
+    res.status(500).json({ message: "Error processing file" });
   }
 });
 
@@ -237,7 +263,7 @@ router.delete("/delete/:id", async (req, res) => {
     const fileId = req.params.id;
     const file = await warranty.findById(fileId);
     if (!file) {
-      return res.status(404).json({message:"File not found !!!!"});
+      return res.status(404).json({ message: "File not found !!!!" });
     }
 
     // delete from uploaded folder
@@ -254,6 +280,31 @@ router.delete("/delete/:id", async (req, res) => {
   } catch (err) {
     console.error("DELETE ERROR:", err);
     res.status(500).json({ message: "Server error while deleting file" });
+  }
+});
+
+router.post("/saveWarranty", async (req, res) => {
+  try {
+    console.log(req.body);
+    await warranty.create({
+      userEmail: req.body.email,
+      purchaseDate: req.body.purchaseDate,
+      warrantyEndDate: req.body.warrantyEndDate,
+      productName: {
+        fullLine: req.body.productName,
+        productCategory: "manual",
+      },
+      notified: false,
+    });
+
+    res.json({
+      message: "Warranty saved successfully",
+    });
+  } catch (e) {
+    console.log("ERROR:", e);
+    res
+      .status(500)
+      .json({ message: "Error saving warranty !", error: e.message });
   }
 });
 

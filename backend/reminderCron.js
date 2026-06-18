@@ -5,8 +5,8 @@ const Warranty = require("./models/warranty");
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user: "manish795503@gmail.com",
-    pass: "kucl twpo bphd lqvs",
+    user: EMAIL_USER,
+    pass: EMAIL_PASS,
   },
 });
 
@@ -17,7 +17,7 @@ cron.schedule("0 0 1 * *", async () => {
   const fourMonthsAgo = new Date(
     now.getFullYear(),
     now.getMonth() - 4,
-    now.getDate()
+    now.getDate(),
   );
 
   const warranties = await Warranty.find({

@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { isTokenExpired, logout } from "../utils/tokenUtils";
 import { ToastContainer, Toast, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+//import { post } from "../../../backend/Routes/UploadsRoutes";
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -12,13 +13,20 @@ function Dashboard() {
   const [files, setFiles] = useState([]);
   const [dragActive, setDragActive] = useState(false);
   const inputRef = useRef(null);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [extractedData, setExtractedData] = useState({
+    productName: "",
+    purchaseDate: "",
+    warrantyPeriod: "",
+    warrantyEndDate: "",
+  });
 
   const fetchFiles = async () => {
     const email = localStorage.getItem("loggedInUser");
     if (!email) return;
 
     const res = await fetch(
-      `https://warranty-reminder-app.onrender.com/dashboard/myfiles?email=${email}`
+      `http://localhost:8080/dashboard/myfiles?email=${email}`,
     );
     const data = await res.json();
 
@@ -32,7 +40,7 @@ function Dashboard() {
         productCategory: file.productName?.productCategory,
         purchaseDate: file.purchaseDate,
         warrantyEndDate: file.warrantyEndDate,
-      }))
+      })),
     );
   };
 
@@ -55,7 +63,7 @@ function Dashboard() {
   }, [navigate]);
 
   const user = JSON.parse(
-    localStorage.getItem("loggedInUser") || '{"name":"user"}'
+    localStorage.getItem("loggedInUser") || '{"name":"user"}',
   );
   const username = user.name;
 
@@ -77,12 +85,13 @@ function Dashboard() {
     formData.append("email", localStorage.getItem("loggedInUser"));
 
     try {
-      const res = await fetch("https://warranty-reminder-app.onrender.com/dashboard/upload", {
+      const res = await fetch("http://localhost:8080/dashboard/upload", {
         method: "POST",
         body: formData,
       });
 
       const text = await res.text();
+      console.log(text);
       let data;
 
       try {
@@ -93,6 +102,18 @@ function Dashboard() {
 
       if (res.ok) {
         setMessage(data.message || "Upload successful");
+
+        console.log(data.productFullName);
+
+        setExtractedData({
+          productName: data.productFullName || "",
+          purchaseDate: data.purchaseDate || "",
+          warrantyPeriod: data.warrantyPeriod || "",
+          warrantyEndDate: data.warrantyEndDate || "",
+        });
+
+        setShowConfirmation(true);
+
         setFile(null);
         await fetchFiles();
       } else {
@@ -123,7 +144,7 @@ function Dashboard() {
 
   const handleDelete = async (id) => {
     try {
-      const res = await fetch(`https://warranty-reminder-app.onrender.com/dashboard/delete/${id}`, {
+      const res = await fetch(`http://localhost:8080/dashboard/delete/${id}`, {
         method: "DELETE",
       });
       const data = await res.json();
@@ -136,6 +157,23 @@ function Dashboard() {
     } catch (err) {
       // console.error("DELETE ERROR:", err);
       toast.error("Error deleting file");
+    }
+  };
+
+  const handleConfirmSave = async () => {
+    try {
+      const user = JSON.parse(localStorage.getItem("loggedInUser"));
+      const res = await fetch("http://localhost:8080/dashboard/saveWarranty", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ ...extractedData, email: user.email }),
+      });
+      const data = await res.json();
+      console.log(data);
+    } catch (error) {
+      console.log(error);
     }
   };
 
@@ -188,6 +226,78 @@ function Dashboard() {
         </form>
 
         {message && <div className="dashboard-message">{message}</div>}
+
+        {showConfirmation && (
+          <div className="confirmation-box">
+            <p className="confirmation-heading">Review Extracted Information</p>
+
+            <div className="form-grid">
+              <div className="field">
+                <label className="Prodlabel">Product Name</label>
+                <input
+                  className="prodInput1"
+                  type="text"
+                  value={extractedData.productName}
+                  onChange={(e) => {
+                    setExtractedData({
+                      ...extractedData,
+                      productName: e.target.value,
+                    });
+                  }}
+                />
+              </div>
+
+              <div className="field">
+                <label className="Prodlabel">Purchase Date</label>
+                <input
+                  className="prodInput1"
+                  type="text"
+                  value={extractedData.purchaseDate}
+                  onChange={(e) => {
+                    setExtractedData({
+                      ...extractedData,
+                      purchaseDate: e.target.value,
+                    });
+                  }}
+                />
+              </div>
+
+              <div className="field">
+                <label className="Prodlabel">Warranty Period</label>
+                <input
+                  className="prodInput1"
+                  type="text"
+                  value={extractedData.warrantyPeriod}
+                  onChange={(e) => {
+                    setExtractedData({
+                      ...extractedData,
+                      warrantyPeriod: e.target.value,
+                    });
+                  }}
+                />
+              </div>
+
+              <div className="field">
+                <label className="Prodlabel">Warranty End Date</label>
+                <input
+                  className="prodInput1"
+                  type="text"
+                  value={extractedData.warrantyEndDate}
+                  onChange={(e) => {
+                    setExtractedData({
+                      ...extractedData,
+                      warrantyEndDate: e.target.value,
+                    });
+                  }}
+                />
+              </div>
+            </div>
+
+            <button className="savebtn" onClick={handleConfirmSave}>
+              Confirm & Save
+            </button>
+          </div>
+        )}
 
         <div className="dashboard-files">
           {files.map((file, idx) => (
