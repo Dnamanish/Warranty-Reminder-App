@@ -5,6 +5,7 @@ import { isTokenExpired, logout } from "../utils/tokenUtils";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 //import { post } from "../../../backend/Routes/UploadsRoutes";
+const API_BASE_URL = "https://warranty-reminder-app.onrender.com";
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -26,7 +27,7 @@ function Dashboard() {
     if (!email) return;
 
     const res = await fetch(
-      `http://localhost:8080/dashboard/myfiles?email=${email}`,
+      `${API_BASE_URL}/dashboard/myfiles?email=${encodeURIComponent(email)}`,
     );
     const data = await res.json();
 
@@ -108,7 +109,7 @@ function Dashboard() {
     formData.append("email", localStorage.getItem("loggedInUser"));
 
     try {
-      const res = await fetch("http://localhost:8080/dashboard/upload", {
+      const res = await fetch(`${API_BASE_URL}/dashboard/upload`, {
         method: "POST",
         body: formData,
       });
@@ -168,7 +169,7 @@ function Dashboard() {
 
   const handleDelete = async (id) => {
     try {
-      const res = await fetch(`http://localhost:8080/dashboard/delete/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/dashboard/delete/${id}`, {
         method: "DELETE",
       });
       const data = await res.json();
@@ -187,7 +188,7 @@ function Dashboard() {
   const handleConfirmSave = async () => {
     try {
       const user = JSON.parse(localStorage.getItem("loggedInUser"));
-      const res = await fetch("http://localhost:8080/dashboard/saveWarranty", {
+      const res = await fetch(`${API_BASE_URL}/dashboard/saveWarranty`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
