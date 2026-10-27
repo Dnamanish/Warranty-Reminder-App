@@ -18,7 +18,21 @@ const storage = multer.diskStorage({
     cb(null, Date.now() + path.extname(file.originalname));
   },
 });
-const upload = multer({ storage: storage });
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5 MB maximum
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ["application/pdf", "image/jpeg", "image/png"];
+
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only PDF, JPEG, and PNG files are allowed."));
+    }
+  },
+});
 
 // helper function to get product name
 function extractProductName(text) {
@@ -152,7 +166,6 @@ router.post("/upload", upload.single("file"), async (req, res) => {
 
     // extract product name
     const productName = extractProductName(text);
-
 
     // extract purchased date first
     // DD/MM/YYYY or DD-MM-YYYY
