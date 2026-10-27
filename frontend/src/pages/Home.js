@@ -44,7 +44,7 @@ const Home = () => {
             </p>
           </div>
           <div className="section-image">
-            <img src={uploadeasily} />
+            <img src={uploadeasily} alt="Uploading warranty documents" />
           </div>
         </div>
 
@@ -60,7 +60,7 @@ const Home = () => {
             </p>
           </div>
           <div className="section-image">
-            <img src={SmartReminders} />
+            <img src={SmartReminders} alt="Warranty expiry reminders" />
           </div>
         </div>
 
@@ -76,7 +76,7 @@ const Home = () => {
             </p>
           </div>
           <div className="section-image">
-            <img src={Oneplace} />
+            <img src={Oneplace} alt="Organized warranty documents" />
           </div>
         </div>
       </div>

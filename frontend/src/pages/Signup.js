@@ -1,8 +1,9 @@
 import React from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import { useState } from "react";
 import { handlesucess, handleerror } from "../util";
+
 import '../Signup.css'
 
 const Signup = () => {
