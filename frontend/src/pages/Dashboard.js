@@ -67,35 +67,33 @@ function Dashboard() {
   );
   const username = user.name;
 
-  const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-
-    if (!selectedFile) {
-      setFile(null);
-      setMessage("");
-      return;
-    }
+  const validateAndSetFile = (selectedFile, inputElement = null) => {
+    if (!selectedFile) return;
 
     const allowedTypes = ["application/pdf", "image/jpeg", "image/png"];
 
     if (!allowedTypes.includes(selectedFile.type)) {
-      toast.error(
-        "Unsupported file type. Please select a PDF, JPG, or PNG file.",
-      );
+      toast.error("Only PDF, JPEG, and PNG files are allowed.");
       setFile(null);
-      e.target.value = "";
+      setMessage("");
+      if (inputElement) inputElement.value = "";
       return;
     }
 
     if (selectedFile.size > 5 * 1024 * 1024) {
       toast.error("File is too large. Maximum allowed size is 5 MB.");
       setFile(null);
-      e.target.value = "";
+      setMessage("");
+      if (inputElement) inputElement.value = "";
       return;
     }
 
     setFile(selectedFile);
     setMessage(`Selected: ${selectedFile.name}`);
+  };
+
+  const handleFileChange = (e) => {
+    validateAndSetFile(e.target.files[0], e.target);
   };
 
   const handleUpload = async (e) => {
@@ -158,10 +156,11 @@ function Dashboard() {
 
   const handleDrop = (e) => {
     e.preventDefault();
+    e.stopPropagation();
     setDragActive(false);
+
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      setFile(e.dataTransfer.files[0]);
-      setMessage(`Selected: ${e.dataTransfer.files[0].name}`);
+      validateAndSetFile(e.dataTransfer.files[0]);
     }
   };
 
@@ -218,6 +217,7 @@ function Dashboard() {
           <input
             ref={inputRef}
             type="file"
+            accept=".pdf,.jpg,.jpeg,.png"
             className="dashboard-upload-input"
             onChange={handleFileChange}
             style={{ display: "none" }}
@@ -233,7 +233,7 @@ function Dashboard() {
               Upload
             </button>
             <div className="dashboard-upload-hint">(up to 5MB)</div>
-            <div className="dashboard-upload-types">PDF ONLY</div>
+            <div className="dashboard-upload-types">PDF, JPEG, PNG</div>
 
             {file && (
               <div className="dashboard-upload-selected">
