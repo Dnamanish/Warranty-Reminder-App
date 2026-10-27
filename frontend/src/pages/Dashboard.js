@@ -69,8 +69,33 @@ function Dashboard() {
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
+
+    if (!selectedFile) {
+      setFile(null);
+      setMessage("");
+      return;
+    }
+
+    const allowedTypes = ["application/pdf", "image/jpeg", "image/png"];
+
+    if (!allowedTypes.includes(selectedFile.type)) {
+      toast.error(
+        "Unsupported file type. Please select a PDF, JPG, or PNG file.",
+      );
+      setFile(null);
+      e.target.value = "";
+      return;
+    }
+
+    if (selectedFile.size > 5 * 1024 * 1024) {
+      toast.error("File is too large. Maximum allowed size is 5 MB.");
+      setFile(null);
+      e.target.value = "";
+      return;
+    }
+
     setFile(selectedFile);
-    setMessage(selectedFile ? `Selected: ${selectedFile.name}` : "");
+    setMessage(`Selected: ${selectedFile.name}`);
   };
 
   const handleUpload = async (e) => {
@@ -117,11 +142,11 @@ function Dashboard() {
         setFile(null);
         await fetchFiles();
       } else {
-        setMessage(data.message || "Upload failed");
+        toast.error(data.message || "Upload failed");
       }
     } catch (err) {
       console.error("UPLOAD ERROR:", err);
-      setMessage("Upload failed (network/server error)");
+      toast.error("Upload failed. Please check your connection and try again.");
     }
   };
 
@@ -207,7 +232,7 @@ function Dashboard() {
             >
               Upload
             </button>
-            <div className="dashboard-upload-hint">(up to 10MB)</div>
+            <div className="dashboard-upload-hint">(up to 5MB)</div>
             <div className="dashboard-upload-types">PDF ONLY</div>
 
             {file && (

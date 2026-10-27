@@ -144,116 +144,144 @@ function extractProductName(text) {
   };
 }
 
-router.post("/upload", upload.single("file"), async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ message: "No file uploaded" });
-  }
-  let purchaseDate = null;
-  let warrantyPeriod = null;
-  let warrantyEndDate = null;
-  let text = "";
+router.post(
+  "/upload",
+  (req, res, next) => {
+    upload.single("file")(req, res, (err) => {
+      if (err) {
+        if (
+          err instanceof multer.MulterError &&
+          err.code === "LIMIT_FILE_SIZE"
+        ) {
+          return res.status(413).json({
+            message: "File is too large. Maximum allowed size is 5 MB.",
+          });
+        }
 
-  try {
-    if (req.file.mimetype === "application/pdf") {
-      // agr pdf h to text extract krega
-      const dataBuffer = fs.readFileSync(req.file.path);
-      const data = await pdfParse(dataBuffer);
-      text = data.text;
-    } else if (req.file.mimetype.startsWith("image/")) {
-      const result = await tesseract.recognize(req.file.path, "eng");
-      text = result.data.text;
+        return res.status(400).json({
+          message: err.message || "This file type is not supported.",
+        });
+      }
+
+      next();
+    });
+  },
+  async (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
     }
+    let purchaseDate = null;
+    let warrantyPeriod = null;
+    let warrantyEndDate = null;
+    let text = "";
 
-    // extract product name
-    const productName = extractProductName(text);
+    try {
+      if (req.file.mimetype === "application/pdf") {
+        // agr pdf h to text extract krega
+        const dataBuffer = fs.readFileSync(req.file.path);
+        const data = await pdfParse(dataBuffer);
+        text = data.text;
+      } else if (req.file.mimetype.startsWith("image/")) {
+        const result = await tesseract.recognize(req.file.path, "eng");
+        text = result.data.text;
+      }
 
-    // extract purchased date first
-    // DD/MM/YYYY or DD-MM-YYYY
-    let purchaseDateMatch = text.match(/\b\d{2}[\/\-]\d{2}[\/\-]\d{4}\b/);
+      // extract product name
+      const productName = extractProductName(text);
 
-    if (!purchaseDateMatch) {
-      // Month name dates
-      purchaseDateMatch = text.match(
-        /(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4}/i,
-      );
-    }
+      // extract purchased date first
+      // DD/MM/YYYY or DD-MM-YYYY
+      let purchaseDateMatch = text.match(/\b\d{2}[\/\-]\d{2}[\/\-]\d{4}\b/);
 
-    purchaseDate = purchaseDateMatch ? purchaseDateMatch[0] : null;
+      if (!purchaseDateMatch) {
+        // Month name dates
+        purchaseDateMatch = text.match(
+          /(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4}/i,
+        );
+      }
 
-    // extract warranty period
-    const numYearMatch = text.match(/(\d+)\s*(year|month)s?/i);
-    if (numYearMatch) {
-      warrantyPeriod = {
-        value: parseInt(numYearMatch[1]),
-        unit: numYearMatch[2],
-      };
-    } else {
-      const wordYearMatch = text.match(
-        /(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s*(year|month)s?/i,
-      );
-      if (wordYearMatch) {
-        const num = wordToNumber(wordYearMatch[1]);
-        if (num) {
-          warrantyPeriod = { value: num, unit: wordYearMatch[2] };
+      purchaseDate = purchaseDateMatch ? purchaseDateMatch[0] : null;
+
+      // extract warranty period
+      const numYearMatch = text.match(/(\d+)\s*(year|month)s?/i);
+      if (numYearMatch) {
+        warrantyPeriod = {
+          value: parseInt(numYearMatch[1]),
+          unit: numYearMatch[2],
+        };
+      } else {
+        const wordYearMatch = text.match(
+          /(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s*(year|month)s?/i,
+        );
+        if (wordYearMatch) {
+          const num = wordToNumber(wordYearMatch[1]);
+          if (num) {
+            warrantyPeriod = { value: num, unit: wordYearMatch[2] };
+          }
         }
       }
-    }
 
-    // 3. Calculate warranty end date
-    if (purchaseDate && warrantyPeriod) {
-      let endDate;
+      // 3. Calculate warranty end date
+      if (purchaseDate && warrantyPeriod) {
+        let endDate;
 
-      if (purchaseDate.includes("/")) {
-        const [day, month, year] = purchaseDate.split(/[\/\-]/).map(Number);
-        endDate = new Date(year, month - 1, day);
-      } else {
-        endDate = new Date(purchaseDate);
+        if (purchaseDate.includes("/")) {
+          const [day, month, year] = purchaseDate.split(/[\/\-]/).map(Number);
+          endDate = new Date(year, month - 1, day);
+        } else {
+          endDate = new Date(purchaseDate);
+        }
+
+        if (warrantyPeriod.unit.toLowerCase().startsWith("year")) {
+          endDate.setFullYear(endDate.getFullYear() + warrantyPeriod.value);
+        } else if (warrantyPeriod.unit.toLowerCase().startsWith("month")) {
+          endDate.setMonth(endDate.getMonth() + warrantyPeriod.value);
+        }
+
+        warrantyEndDate = endDate.toISOString().slice(0, 10);
       }
 
-      if (warrantyPeriod.unit.toLowerCase().startsWith("year")) {
-        endDate.setFullYear(endDate.getFullYear() + warrantyPeriod.value);
-      } else if (warrantyPeriod.unit.toLowerCase().startsWith("month")) {
-        endDate.setMonth(endDate.getMonth() + warrantyPeriod.value);
-      }
+      // test
+      console.log("Purchase Date:", purchaseDate);
+      console.log("Warranty Period:", warrantyPeriod);
+      console.log("Warranty End:", warrantyEndDate);
+      console.log("DATE MATCH:", purchaseDateMatch);
 
-      warrantyEndDate = endDate.toISOString().slice(0, 10);
+      // await warranty.create({
+      //   userEmail: req.body.email ||,
+      //   fileName: req.file.filename,
+      //   originalName: req.file.originalname,
+      //   warrantyEndDate: warrantyEndDate,
+      //   purchaseDate,
+      //   productName: {
+      //     fullLine: productName.fullLine,
+      //     productCategory: productName.productCategory,
+      //   },
+      //   notified: false,
+      // });
+
+      res.status(200).json({
+        message: "File uploaded and info extracted",
+        productCategory: productName.productCategory,
+        productFullName: productName.fullLine,
+
+        purchaseDate,
+        warrantyPeriod: warrantyPeriod
+          ? `${warrantyPeriod.value} ${warrantyPeriod.unit}`
+          : null,
+        warrantyEndDate,
+        textPreview: text, // text.substring(0, 200)
+      });
+    } catch (error) {
+      console.error("Error processing uploaded file:", error);
+
+      return res.status(500).json({
+        message:
+          "Unable to process this file. Please upload a valid PDF or supported image.",
+      });
     }
-
-    // test
-    console.log("Purchase Date:", purchaseDate);
-    console.log("Warranty Period:", warrantyPeriod);
-    console.log("Warranty End:", warrantyEndDate);
-    console.log("DATE MATCH:", purchaseDateMatch);
-
-    // await warranty.create({
-    //   userEmail: req.body.email ||,
-    //   fileName: req.file.filename,
-    //   originalName: req.file.originalname,
-    //   warrantyEndDate: warrantyEndDate,
-    //   purchaseDate,
-    //   productName: {
-    //     fullLine: productName.fullLine,
-    //     productCategory: productName.productCategory,
-    //   },
-    //   notified: false,
-    // });
-
-    res.status(200).json({
-      message: "File uploaded and info extracted",
-      productCategory: productName.productCategory,
-      productFullName: productName.fullLine,
-
-      purchaseDate,
-      warrantyPeriod: warrantyPeriod
-        ? `${warrantyPeriod.value} ${warrantyPeriod.unit}`
-        : null,
-      warrantyEndDate,
-      textPreview: text, // text.substring(0, 200)
-    });
-  } catch (error) {
-    res.status(500).json({ message: "Error processing file" });
-  }
-});
+  },
+);
 
 /// for getting user previously uploaded files
 router.get("/myfiles", async (req, res) => {
