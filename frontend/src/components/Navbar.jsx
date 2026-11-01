@@ -1,47 +1,38 @@
+
 import React from "react";
-import { Link ,useNavigate} from "react-router-dom";
-import "../Home.css";
+import { Link } from "react-router-dom";
+import "./Navbar.css";
 
 const Navbar = () => {
-  const navigate = useNavigate();
-  const isloggedIn = localStorage.getItem("loggedInUser") !== null;
-
-  const handleLogout = () => {
-    localStorage.removeItem("loggedInUser");
-    navigate("/login");
-  };
-
   return (
-    <nav className="navbar">
-      <div className="logo">Warranty Reminder</div>
-      <ul className="nav-links">
-        <li>
-          <Link to="/">Home</Link>
-        </li>
-        <li>
+    <div className="wr-nav-shell">
+      <header className="wr-nav">
+        <Link to="/home" className="wr-brand">
+          <span className="wr-brand-mark">W</span>
+
+          <span className="wr-brand-text">
+            <strong>Warranty Reminder</strong>
+            <small>Stay protected, always</small>
+          </span>
+        </Link>
+
+        <nav className="wr-nav-pill">
+          <Link to="/home">Home</Link>
           <Link to="/about">About</Link>
-        </li>
-        <li>
-          <Link to="/contact">Contact</Link>
-        </li>
-        <li>
           <Link to="/dashboard">Dashboard</Link>
-        </li>
-      </ul>
+        </nav>
 
-
-      <div className="auth-buttons">
-        {!isloggedIn ? (
-          <Link to="/signup" className="signup-btn">
-            Sign Up
+        <div className="wr-nav-actions">
+          <Link to="/login" className="wr-link">
+            Login
           </Link>
-        ) : (
-          <button onClick={handleLogout} className="logout-btn">
-            Logout
-          </button>
-        )}
-      </div>
-    </nav>
+
+          <Link to="/dashboard" className="wr-btn wr-btn-dark">
+            Start Now
+          </Link>
+        </div>
+      </header>
+    </div>
   );
 };
 

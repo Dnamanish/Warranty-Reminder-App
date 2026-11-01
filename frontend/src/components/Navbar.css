@@ -1,0 +1,153 @@
+
+/* Full-width navbar background and typography */
+
+.wr-nav-shell {
+  width: 100%;
+  background: #f7f5ef;
+  color: #1f2a1a;
+
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.wr-nav-shell *,
+.wr-nav-shell *::before,
+.wr-nav-shell *::after {
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.wr-nav-shell a {
+  text-decoration: none;
+  color: inherit;
+}
+
+/* Navbar container */
+
+.wr-nav {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 16px 20px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+/* Brand */
+
+.wr-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.wr-brand-mark {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+
+  background: #42512b;
+  color: #fff;
+
+  display: grid;
+  place-items: center;
+
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.wr-brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.wr-brand-text strong {
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.wr-brand-text small {
+  font-size: 0.65rem;
+  color: #6b7466;
+}
+
+/* Navigation links */
+
+.wr-nav-pill {
+  display: flex;
+  gap: 4px;
+
+  background: #fff;
+  border: 1px solid #e7e4da;
+  border-radius: 12px;
+  padding: 6px;
+}
+
+.wr-nav-pill a {
+  padding: 7px 16px;
+
+  font-size: 0.82rem;
+  font-weight: 500;
+
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.wr-nav-pill a:hover {
+  background: #e6ebd9;
+}
+
+/* Right-side actions */
+
+.wr-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.wr-nav-actions .wr-link {
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.wr-nav-actions .wr-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 11px 22px;
+  border-radius: 10px;
+
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.wr-nav-actions .wr-btn-dark {
+  background: #42512b;
+  color: #fff;
+  transition: background 0.2s;
+}
+
+.wr-nav-actions .wr-btn-dark:hover {
+  background: #2f3e2a;
+}
+
+/* Responsive */
+
+@media (max-width: 900px) {
+  .wr-nav-pill {
+    display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .wr-nav {
+    flex-wrap: wrap;
+  }
+
+  .wr-nav-actions {
+    gap: 10px;
+  }
+}
