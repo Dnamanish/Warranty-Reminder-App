@@ -1,12 +1,15 @@
 import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { handlesucess, handleerror } from "../util";
 
-import '../Signup.css'
+import "../Signup.css";
 
 const Signup = () => {
+  const [isLoading, setIsLoading] = useState(false);
+  const signupLock = useRef(false);
+
   const [signupInfo, setSignupInfo] = useState({
     name: "",
     email: "",
@@ -24,14 +27,22 @@ const Signup = () => {
 
   const handlesignup = async (e) => {
     e.preventDefault();
+
+    if (signupLock.current) return;
+
     const { name, email, password } = signupInfo;
     if (!name || !email || !password) {
       return handleerror("All fields are required");
     }
-    // api call
+
+    signupLock.current = true;
+    setIsLoading(true);
 
     try {
-      const url = "https://warranty-reminder-app.onrender.com/auth/signup";
+      // const url = "https://warranty-reminder-app.onrender.com/auth/signup";
+
+      const url = "http://localhost:8080/auth/signup";
+
       const response = await fetch(url, {
         method: "POST",
         headers: {
@@ -52,14 +63,13 @@ const Signup = () => {
       } else if (success === false) {
         handleerror(message);
       }
-      
     } catch (err) {
       handleerror(err);
+    } finally {
+      signupLock.current = false;
+      setIsLoading(false);
     }
   };
-
-
-
 
   return (
     <div className="container">
@@ -90,13 +100,15 @@ const Signup = () => {
           <label htmlFor="password">Password</label>
           <input
             onChange={handlechange}
-            type="text"
+            type="password"
             name="password"
             placeholder="Enter you password.."
             value={signupInfo.password}
           />
         </div>
-        <button type="submit">signup</button>
+        <button type="submit" disabled={isLoading}>
+          {isLoading ? "Creating account..." : "Signup"}
+        </button>
         <span>
           Alreay have an account ?<Link to="/login">Login</Link>
         </span>

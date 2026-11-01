@@ -11,7 +11,7 @@ const transporter = nodemailer.createTransport({
 });
 
 cron.schedule("0 0 1 * *", async () => {
-  console.log("Cron job running...");
+  // console.log("Cron job running...");
   const now = new Date();
 
   const fourMonthsAgo = new Date(
@@ -28,15 +28,15 @@ cron.schedule("0 0 1 * *", async () => {
     ],
   });
 
-  console.log("Found warranties:", warranties.length);
+  // console.log("Found warranties:", warranties.length);
 
   for (const warranty of warranties) {
     // Basic email validation
     if (!warranty.userEmail || !warranty.userEmail.includes("@")) {
-      console.log("Skipping invalid email:", warranty.userEmail);
+      // console.log("Skipping invalid email:", warranty.userEmail);
       continue;
     }
-    console.log("Sending email to:", warranty.userEmail);
+    // console.log("Sending email to:", warranty.userEmail);
     await transporter.sendMail({
       to: warranty.userEmail,
       subject: "Friendly Reminder: Your Warranty is Ending Soon",

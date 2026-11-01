@@ -1,11 +1,14 @@
 import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { handlesucess, handleerror } from "../util";
-import  '../Login.css'
+import "../Login.css";
 
 const Login = () => {
+  const [isLoading, setIsLoading] = useState(false);
+  const loginLock = useRef(false);
+
   const [LoginInfo, setLoginInfo] = useState({
     email: "",
     password: "",
@@ -22,14 +25,21 @@ const Login = () => {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+
+    if (loginLock.current) return;
+
     const { email, password } = LoginInfo;
+
     if (!email || !password) {
       return handleerror("All fields are required");
     }
-    // api call
+
+    loginLock.current = true;
+    setIsLoading(true);
 
     try {
       const url = "https://warranty-reminder-app.onrender.com/auth/login";
+
       const response = await fetch(url, {
         method: "POST",
         headers: {
@@ -37,12 +47,16 @@ const Login = () => {
         },
         body: JSON.stringify(LoginInfo),
       });
+
       const result = await response.json();
       const { success, message, jwtToken, name, error } = result;
+
       if (success) {
         handlesucess(message);
+
         localStorage.setItem("token", jwtToken);
         localStorage.setItem("loggedInUser", JSON.stringify({ email, name }));
+
         navigate("/dashboard");
       } else if (error) {
         const details = error.details[0].message;
@@ -50,9 +64,11 @@ const Login = () => {
       } else if (success === false) {
         handleerror(message);
       }
-      // console.log(result);
     } catch (err) {
-      handleerror(err);
+      handleerror(err.message || "Login failed");
+    } finally {
+      loginLock.current = false;
+      setIsLoading(false);
     }
   };
 
@@ -80,7 +96,9 @@ const Login = () => {
             value={LoginInfo.password}
           />
         </div>
-        <button type="submit">Login</button>
+        <button type="submit" disabled={isLoading}>
+          {isLoading ? "Logging in..." : "Login"}
+        </button>
         <span>
           Don't have an account ?<Link to="/signup">Signup</Link>
         </span>
