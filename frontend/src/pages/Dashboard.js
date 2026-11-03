@@ -5,16 +5,37 @@ import { isTokenExpired, logout } from "../utils/tokenUtils";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
+import {
+  Shield,
+  ShieldCheck,
+  Clock3,
+  AlertCircle,
+  FilePlus2,
+  CloudUpload,
+  FileText,
+  Mail,
+  Package,
+  Trash2,
+} from "lucide-react";
+
 const API_BASE_URL = "https://warranty-reminder-app.onrender.com";
 
 function Dashboard() {
   const navigate = useNavigate();
-  // const [file, setFile] = useState(null);
-  const [message, setMessage] = useState("");
-  const [files, setFiles] = useState([]);
-  const [dragActive, setDragActive] = useState(false);
+
   const inputRef = useRef(null);
+  const uploadLock = useRef(false);
+  const saveLock = useRef(false);
+
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [dragActive, setDragActive] = useState(false);
+
+  const [message, setMessage] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
   const [showConfirmation, setShowConfirmation] = useState(false);
+
   const [extractedData, setExtractedData] = useState({
     productName: "",
     purchaseDate: "",
@@ -22,158 +43,165 @@ function Dashboard() {
     warrantyEndDate: "",
   });
 
-  const [isUploading, setIsUploading] = useState(false);
-  const uploadLock = useRef(false);
+  const [files, setFiles] = useState([]);
+  const [isLoadingFiles, setIsLoadingFiles] = useState(true);
 
-  const [isSaving, setIsSaving] = useState(false);
-  const saveLock = useRef(false);
-
-  // const fetchFiles = async () => {
-  //   const email = localStorage.getItem("loggedInUser");
-  //   if (!email) return;
-
-  //   const res = await fetch(
-  //     `${API_BASE_URL}/dashboard/myfiles?email=${encodeURIComponent(email)}`,
-  //   );
-  //   const data = await res.json();
-
-  //   setFiles(
-  //     data.map((file) => ({
-  //       _id: file._id,
-  //       name: file.originalName,
-  //       url: `/uploads/${file.fileName}`,
-  //       type: "pdf",
-  //       productName: file.productName?.fullLine,
-  //       productCategory: file.productName?.productCategory,
-  //       purchaseDate: file.purchaseDate,
-  //       warrantyEndDate: file.warrantyEndDate,
-  //     })),
-  //   );
-  // };
-
+  // Authentication check
   useEffect(() => {
-    //  token expiry check
     const token = localStorage.getItem("token");
+
     if (isTokenExpired(token)) {
       logout();
       return;
     }
 
-    // Check if user is logged in
-    const user = localStorage.getItem("loggedInUser");
-    if (!user) {
+    const storedUser = localStorage.getItem("loggedInUser");
+
+    if (!storedUser) {
       navigate("/login");
+    }
+  }, [navigate]);
+
+  // User information
+  const user = JSON.parse(
+    localStorage.getItem("loggedInUser") || '{"name":"User","email":""}',
+  );
+
+  const username = user.name || "User";
+
+  // Fetch warranties belonging to the logged-in user
+  const fetchUserFiles = async () => {
+    if (!user.email) {
+      setIsLoadingFiles(false);
       return;
     }
 
-    // fetchFiles();
-  }, [navigate]);
+    setIsLoadingFiles(true);
 
-  const user = JSON.parse(
-    localStorage.getItem("loggedInUser") || '{"name":"user"}',
-  );
-  const username = user.name;
+    try {
+      const res = await fetch(
+        `${API_BASE_URL}/dashboard/myfiles?email=${encodeURIComponent(user.email)}`,
+      );
 
-  const validateAndSetFile = (selectedFile, inputElement = null) => {
-    if (!selectedFile) return;
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Unable to fetch warranties.");
+      }
+
+      setFiles(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("FETCH WARRANTIES ERROR:", error);
+      toast.error(error.message || "Unable to load warranties.");
+    } finally {
+      setIsLoadingFiles(false);
+    }
+  };
+
+  // cal warranty stats
+  const getDaysUntilExpiry = (dateString) => {
+    if (!dateString) return null;
+
+    const expiryDate = new Date(`${dateString}T00:00:00`);
+
+    if (Number.isNaN(expiryDate.getTime())) return null;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return Math.ceil(
+      (expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+    );
+  };
+
+  const getProductName = (file) =>
+    file.productName?.fullLine ||
+    file.productName?.productCategory ||
+    "Unknown product";
+
+  const activeFiles = files.filter((file) => {
+    const days = getDaysUntilExpiry(file.warrantyEndDate);
+    return days !== null && days > 30;
+  });
+
+  const expiringFiles = files
+    .filter((file) => {
+      const days = getDaysUntilExpiry(file.warrantyEndDate);
+      return days !== null && days >= 0 && days <= 30;
+    })
+    .sort(
+      (a, b) =>
+        getDaysUntilExpiry(a.warrantyEndDate) -
+        getDaysUntilExpiry(b.warrantyEndDate),
+    );
+
+  const expiredFiles = files.filter((file) => {
+    const days = getDaysUntilExpiry(file.warrantyEndDate);
+    return days !== null && days < 0;
+  });
+
+  // Fetch after the dashboard loads
+  useEffect(() => {
+    fetchUserFiles();
+  }, [user.email]);
+
+  // File validation
+  const validateAndSetFile = (file, inputElement = null) => {
+    if (!file) return;
 
     const allowedTypes = ["application/pdf", "image/jpeg", "image/png"];
 
-    if (!allowedTypes.includes(selectedFile.type)) {
+    if (!allowedTypes.includes(file.type)) {
       toast.error("Only PDF, JPEG, and PNG files are allowed.");
-      // setFile(null);
+
+      setSelectedFile(null);
       setMessage("");
+
       if (inputElement) inputElement.value = "";
+
       return;
     }
 
-    if (selectedFile.size > 5 * 1024 * 1024) {
+    if (file.size > 5 * 1024 * 1024) {
       toast.error("File is too large. Maximum allowed size is 5 MB.");
-      // setFile(null);
+
+      setSelectedFile(null);
       setMessage("");
+
       if (inputElement) inputElement.value = "";
+
       return;
     }
 
-    // setFile(selectedFile);
-    setMessage(`Selected: ${selectedFile.name}`);
+    setSelectedFile(file);
+    setMessage("");
   };
 
+  // Browse files
   const handleFileChange = (e) => {
     validateAndSetFile(e.target.files[0], e.target);
   };
 
-  const handleUpload = async (e) => {
-    e.preventDefault();
-
-    // duplicate uploads check hai
-    if (uploadLock.current) return;
-
-    // if (!file) {
-    //   setMessage("Please select a file");
-    //   return;
-    // }
-
-    // Lock
-    uploadLock.current = true;
-    setIsUploading(true);
-
-    const formData = new FormData();
-    // formData.append("file", file);
-    formData.append("email", localStorage.getItem("loggedInUser"));
-
-    try {
-      const res = await fetch(`${API_BASE_URL}/dashboard/upload`, {
-        method: "POST",
-        body: formData,
-      });
-
-      const text = await res.text();
-      console.log(text);
-
-      let data;
-
-      try {
-        data = JSON.parse(text);
-      } catch {
-        data = { message: text };
-      }
-
-      if (res.ok) {
-        setMessage(data.message || "Upload successful");
-
-        setExtractedData({
-          productName: data.productFullName || "",
-          purchaseDate: data.purchaseDate || "",
-          warrantyPeriod: data.warrantyPeriod || "",
-          warrantyEndDate: data.warrantyEndDate || "",
-        });
-
-        setShowConfirmation(true);
-        // setFile(null);
-
-        // await fetchFiles();
-      } else {
-        toast.error(data.message || "Upload failed");
-      }
-    } catch (err) {
-      console.error("UPLOAD ERROR:", err);
-      toast.error("Upload failed. Please check your connection and try again.");
-    } finally {
-      uploadLock.current = false;
-      setIsUploading(false);
-    }
+  const onButtonClick = () => {
+    inputRef.current?.click();
   };
 
+  // Drag and drop
   const handleDrag = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    setDragActive(e.type === "dragenter" || e.type === "dragover");
+
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
     e.stopPropagation();
+
     setDragActive(false);
 
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
@@ -181,37 +209,76 @@ function Dashboard() {
     }
   };
 
-  const onButtonClick = () => inputRef.current.click();
+  // Upload invoice and extract information
+  const handleUpload = async (e) => {
+    e.preventDefault();
 
-  // const handleDelete = async (id) => {
-  //   try {
-  //     const res = await fetch(`${API_BASE_URL}/dashboard/delete/${id}`, {
-  //       method: "DELETE",
-  //     });
-  //     const data = await res.json();
-  //     if (res.ok) {
-  //       toast.success("Delete Successfully");
-  //       // fetchFiles();
-  //     } else {
-  //       toast.error(data.message || "Delete failed");
-  //     }
-  //   } catch (err) {
-  //     // console.error("DELETE ERROR:", err);
-  //     toast.error("Error deleting file");
-  //   }
-  // };
+    if (uploadLock.current) return;
 
+    if (!selectedFile) {
+      toast.error("Please select an invoice first.");
+      return;
+    }
+
+    uploadLock.current = true;
+    setIsUploading(true);
+
+    const formData = new FormData();
+
+    formData.append("file", selectedFile);
+    formData.append("email", user.email);
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/dashboard/upload`, {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast.error(data.message || "Upload failed.");
+        return;
+      }
+
+      setMessage(data.message || "Invoice processed successfully.");
+
+      setExtractedData({
+        productName: data.productFullName || "",
+        purchaseDate: data.purchaseDate || "",
+        warrantyPeriod: data.warrantyPeriod || "",
+        warrantyEndDate: data.warrantyEndDate || "",
+      });
+
+      setShowConfirmation(true);
+    } catch (error) {
+      console.error("UPLOAD ERROR:", error);
+
+      toast.error("Upload failed. Please check your connection and try again.");
+    } finally {
+      uploadLock.current = false;
+      setIsUploading(false);
+    }
+  };
+
+  // Update extracted information
+  const handleExtractedChange = (e) => {
+    const { name, value } = e.target;
+
+    setExtractedData((previous) => ({
+      ...previous,
+      [name]: value,
+    }));
+  };
+
+  // Save confirmed warranty
   const handleConfirmSave = async () => {
-    // Prevent duplicate save requests
     if (saveLock.current) return;
 
-    // Lock immediately
     saveLock.current = true;
     setIsSaving(true);
 
     try {
-      const user = JSON.parse(localStorage.getItem("loggedInUser"));
-
       const res = await fetch(`${API_BASE_URL}/dashboard/saveWarranty`, {
         method: "POST",
         headers: {
@@ -226,16 +293,24 @@ function Dashboard() {
       const data = await res.json();
 
       if (!res.ok) {
-        toast.error(data.message || "Failed to save warranty");
+        toast.error(data.message || "Failed to save warranty.");
         return;
       }
 
-      console.log(data);
-      toast.success(data.message || "Warranty saved successfully");
+      toast.success(data.message || "Warranty saved successfully.");
+
+      await fetchUserFiles();
 
       setShowConfirmation(false);
+      setSelectedFile(null);
+      setMessage("");
+
+      if (inputRef.current) {
+        inputRef.current.value = "";
+      }
     } catch (error) {
       console.error("SAVE ERROR:", error);
+
       toast.error("Unable to save warranty. Please try again.");
     } finally {
       saveLock.current = false;
@@ -243,167 +318,352 @@ function Dashboard() {
     }
   };
 
+  const handleCancelConfirmation = () => {
+    setShowConfirmation(false);
+
+    setExtractedData({
+      productName: "",
+      purchaseDate: "",
+      warrantyPeriod: "",
+      warrantyEndDate: "",
+    });
+  };
+
   return (
     <div className="dashboard-modern-container">
-      <h1 className="dashboard-header">Hello, {username}!</h1>
+      <main className="dashboard-content">
+        {/* Welcome section */}
+        <section className="dashboard-welcome">
+          <div>
+            <p className="dashboard-eyebrow">YOUR WARRANTY OVERVIEW</p>
 
-      <main className="dashboard-modern-main">
-        <form
-          className={`dashboard-upload-area${dragActive ? " drag-active" : ""}`}
-          onDragEnter={handleDrag}
-          onDragLeave={handleDrag}
-          onDragOver={handleDrag}
-          onDrop={handleDrop}
-          onSubmit={handleUpload}
-        >
-          <input
-            ref={inputRef}
-            type="file"
-            accept=".pdf,.jpg,.jpeg,.png"
-            className="dashboard-upload-input"
-            onChange={handleFileChange}
-            style={{ display: "none" }}
-          />
+            <h1 className="dashboard-header">Welcome back, {username}</h1>
 
-          <div className="dashboard-upload-cloud">
-            <p>Drag and drop to upload</p>
-            <button
-              type="button"
-              className="dashboard-upload-btn"
-              onClick={onButtonClick}
-            >
-              Upload
-            </button>
-            <div className="dashboard-upload-hint">(up to 5MB)</div>
-            <div className="dashboard-upload-types">PDF, JPEG, PNG</div>
+            <p className="dashboard-subtitle">
+              Here's an overview of your warranty protection.
+            </p>
+          </div>
+        </section>
 
-            {/* {file && (
-              <div className="dashboard-upload-selected">
-                Selected: {file.name}
-              </div>
-            )} */}
+        {/* Summary cards */}
+        <section className="dashboard-stats">
+          <div className="dashboard-stat-card">
+            <div className="stat-icon stat-icon-total">
+              <Shield size={21} />
+            </div>
+
+            <h2>{isLoadingFiles ? "—" : files.length}</h2>
+            <p>Total Warranties</p>
           </div>
 
-          <button
-            type="submit"
-            className="dashboard-upload-btn upload-submit-btn"
-            disabled={isUploading}
-          >
-            {isUploading ? "Uploading..." : "Submit"}
-          </button>
-        </form>
+          <div className="dashboard-stat-card">
+            <div className="stat-icon stat-icon-active">
+              <ShieldCheck size={21} />
+            </div>
 
-        {message && <div className="dashboard-message">{message}</div>}
+            <h2>{isLoadingFiles ? "—" : activeFiles.length}</h2>
+            <p>Active Warranties</p>
+          </div>
 
+          <div className="dashboard-stat-card">
+            <div className="stat-icon stat-icon-expiring">
+              <Clock3 size={21} />
+            </div>
+
+            <h2>{isLoadingFiles ? "—" : expiringFiles.length}</h2>
+            <p>Expiring Soon</p>
+          </div>
+
+          <div className="dashboard-stat-card">
+            <div className="stat-icon stat-icon-expired">
+              <AlertCircle size={21} />
+            </div>
+
+            <h2>{isLoadingFiles ? "—" : expiredFiles.length}</h2>
+            <p>Expired</p>
+          </div>
+        </section>
+
+        {/* Upload and expiring warranties */}
+        <section className="dashboard-main-grid">
+          {/* Upload section */}
+          <div className="dashboard-panel upload-panel">
+            <div className="dashboard-panel-heading">
+              <div>
+                <h2>Add a New Warranty</h2>
+
+                <p>
+                  Upload your invoice and let us extract your warranty details.
+                </p>
+              </div>
+
+              <div className="panel-heading-icon">
+                <FilePlus2 size={21} />
+              </div>
+            </div>
+
+            <form
+              id="dashboard-upload-form"
+              onSubmit={handleUpload}
+              className={`dashboard-upload-area ${
+                dragActive ? "drag-active" : ""
+              }`}
+              onDragEnter={handleDrag}
+              onDragLeave={handleDrag}
+              onDragOver={handleDrag}
+              onDrop={handleDrop}
+            >
+              <input
+                ref={inputRef}
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                className="dashboard-upload-input"
+                onChange={handleFileChange}
+              />
+
+              <div className="upload-cloud-icon">
+                <CloudUpload size={27} />
+              </div>
+
+              <h3>Drag & drop your invoice here</h3>
+
+              <p>PDF, JPG or PNG — max 5 MB</p>
+
+              <span className="upload-or">or</span>
+
+              <button
+                type="button"
+                className="dashboard-upload-btn"
+                onClick={onButtonClick}
+              >
+                Browse Files
+              </button>
+
+              {selectedFile && (
+                <div className="dashboard-selected-file">
+                  <FileText size={19} />
+                  <span>{selectedFile.name}</span>
+                </div>
+              )}
+            </form>
+
+            <button
+              type="submit"
+              form="dashboard-upload-form"
+              className="dashboard-submit-btn"
+              disabled={isUploading || !selectedFile}
+            >
+              {isUploading ? "Processing invoice..." : "Submit Invoice"}
+            </button>
+
+            {message && <p className="dashboard-message">{message}</p>}
+          </div>
+
+          {/* Expiring soon section */}
+          <div className="dashboard-panel expiring-panel">
+            <div className="dashboard-panel-heading">
+              <div>
+                <h2>Expiring Soon</h2>
+                <p>Approaching expiry dates</p>
+              </div>
+            </div>
+
+            <div className="dashboard-expiring-list">
+              {isLoadingFiles ? (
+                <p className="dashboard-list-message">Loading warranties...</p>
+              ) : expiringFiles.length === 0 ? (
+                <div className="dashboard-empty-state">
+                  <div className="empty-state-icon">
+                    <Clock3 size={24} />
+                  </div>
+
+                  <h3>No upcoming expiries</h3>
+
+                  <p>Your upcoming warranty expiries will appear here.</p>
+                </div>
+              ) : (
+                expiringFiles.slice(0, 4).map((file) => {
+                  const days = getDaysUntilExpiry(file.warrantyEndDate);
+
+                  return (
+                    <div className="dashboard-expiring-item" key={file._id}>
+                      <div className="expiring-item-icon">
+                        <Clock3 size={18} />
+                      </div>
+
+                      <div className="expiring-item-details">
+                        <strong>{getProductName(file)}</strong>
+                        <small>{file.warrantyEndDate}</small>
+                      </div>
+
+                      <span className="expiring-days">
+                        {days === 0 ? "Today" : `${days}d`}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="dashboard-reminder-info">
+              <div className="reminder-icon">
+                <Mail size={18} />
+              </div>
+
+              <div>
+                <h4>Reminder Activity</h4>
+                <p>Reminder information will appear here when available.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Extracted information confirmation */}
         {showConfirmation && (
-          <div className="confirmation-box">
-            <p className="confirmation-heading">Review Extracted Information</p>
+          <section className="dashboard-panel confirmation-box">
+            <div className="dashboard-panel-heading">
+              <div>
+                <h2>Review Extracted Information</h2>
+
+                <p>
+                  Check the details extracted from your invoice before saving.
+                </p>
+              </div>
+            </div>
 
             <div className="form-grid">
               <div className="field">
-                <label className="Prodlabel">Product Name</label>
+                <label htmlFor="productName">Product Name</label>
+
                 <input
-                  className="prodInput1"
+                  id="productName"
+                  name="productName"
                   type="text"
                   value={extractedData.productName}
-                  onChange={(e) => {
-                    setExtractedData({
-                      ...extractedData,
-                      productName: e.target.value,
-                    });
-                  }}
+                  onChange={handleExtractedChange}
                 />
               </div>
 
               <div className="field">
-                <label className="Prodlabel">Purchase Date</label>
+                <label htmlFor="purchaseDate">Purchase Date</label>
+
                 <input
-                  className="prodInput1"
+                  id="purchaseDate"
+                  name="purchaseDate"
                   type="text"
-                  placeholder="(e.g. 15/08/2025)"
+                  placeholder="e.g. 15/08/2025"
                   value={extractedData.purchaseDate}
-                  onChange={(e) => {
-                    setExtractedData({
-                      ...extractedData,
-                      purchaseDate: e.target.value,
-                    });
-                  }}
+                  onChange={handleExtractedChange}
                 />
               </div>
 
               <div className="field">
-                <label className="Prodlabel">Warranty Period</label>
+                <label htmlFor="warrantyPeriod">Warranty Period</label>
+
                 <input
-                  className="prodInput1"
+                  id="warrantyPeriod"
+                  name="warrantyPeriod"
                   type="text"
                   placeholder="e.g. 2 years or 12 months"
                   value={extractedData.warrantyPeriod}
-                  onChange={(e) => {
-                    setExtractedData({
-                      ...extractedData,
-                      warrantyPeriod: e.target.value,
-                    });
-                  }}
+                  onChange={handleExtractedChange}
                 />
               </div>
 
               <div className="field">
-                <label className="Prodlabel">Warranty End Date</label>
+                <label htmlFor="warrantyEndDate">Warranty End Date</label>
+
                 <input
-                  className="prodInput1"
+                  id="warrantyEndDate"
+                  name="warrantyEndDate"
                   type="text"
-                  placeholder="(e.g. 15/08/2027)"
+                  placeholder="e.g. 15/08/2027"
                   value={extractedData.warrantyEndDate}
-                  onChange={(e) => {
-                    setExtractedData({
-                      ...extractedData,
-                      warrantyEndDate: e.target.value,
-                    });
-                  }}
+                  onChange={handleExtractedChange}
                 />
               </div>
             </div>
 
-            <button
-              className="savebtn"
-              onClick={handleConfirmSave}
-              disabled={isSaving}
-            >
-              {isSaving ? "Saving..." : "Confirm & Save"}
-            </button>
-          </div>
+            <div className="confirmation-actions">
+              <button
+                type="button"
+                className="dashboard-cancel-btn"
+                onClick={handleCancelConfirmation}
+                disabled={isSaving}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                className="dashboard-save-btn"
+                onClick={handleConfirmSave}
+                disabled={isSaving}
+              >
+                {isSaving ? "Saving..." : "Confirm & Save"}
+              </button>
+            </div>
+          </section>
         )}
 
-        <div className="dashboard-files">
-          {files.map((file, idx) => (
-            <div className="dashboard-file-card" key={idx}>
-              <div className="pdf-icon">📄</div>
+        {/* All warranties */}
+        <section className="dashboard-panel warranties-panel">
+          <div className="dashboard-panel-heading">
+            <div>
+              <h2>Your Warranties</h2>
 
-              <div className="dashboard-file-info">
-                <div className="info-row">
-                  <span className="label">Product Category:</span>
-                  <span className="value">{file.productCategory || "N/A"}</span>
-                </div>
-
-                <div className="info-row">
-                  <span className="label">Purchase Date:</span>
-                  <span className="value">{file.purchaseDate || "N/A"}</span>
-                </div>
-
-                <div className="info-row">
-                  <span className="label">Warranty End:</span>
-                  <span className="value">{file.warrantyEndDate || "N/A"}</span>
-                </div>
-                <button
-                  className="card-delete-btn"
-                  // onClick={() => handleDelete(file._id)}
-                >
-                  Delete
-                </button>
-              </div>
+              <p>Manage all your registered products in one place.</p>
             </div>
-          ))}
-        </div>
+          </div>
+
+          <div className="dashboard-table-wrapper">
+            <table className="dashboard-table">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Expiry Date</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {files.length === 0 ? (
+                  <tr>
+                    <td colSpan="4" className="dashboard-table-empty">
+                      No warranties found. Upload an invoice to get started.
+                    </td>
+                  </tr>
+                ) : (
+                  files.map((file) => (
+                    <tr key={file._id}>
+                      <td>
+                        <strong>{getProductName(file)}</strong>
+
+                        <small>Purchased: {file.purchaseDate || "N/A"}</small>
+                      </td>
+
+                      <td>{file.warrantyEndDate || "N/A"}</td>
+
+                      <td>—</td>
+
+                      <td>
+                        <button
+                          type="button"
+                          className="dashboard-delete-btn"
+                          disabled
+                        >
+                          <Trash2 size={15} />
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
       </main>
 
       <ToastContainer
