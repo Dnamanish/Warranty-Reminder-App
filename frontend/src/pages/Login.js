@@ -38,7 +38,7 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      const url = "https://warranty-reminder-app.onrender.com/auth/login";
+      const url = `${process.env.REACT_APP_API_BASE_URL}/auth/login`; //"https://warranty-reminder-app.onrender.com/auth/login";
 
       const response = await fetch(url, {
         method: "POST",

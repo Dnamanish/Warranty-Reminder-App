@@ -10,44 +10,93 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-cron.schedule("0 0 1 * *", async () => {
-  // console.log("Cron job running...");
-  const now = new Date();
+const parseWarrantyDate = (value) => {
+  if (!value) return null;
 
-  const fourMonthsAgo = new Date(
-    now.getFullYear(),
-    now.getMonth() - 4,
-    now.getDate(),
-  );
+  let day, month, year;
 
-  const warranties = await Warranty.find({
-    warrantyEndDate: { $gte: now.toISOString().slice(0, 10) },
-    $or: [
-      { lastRemindedAt: { $lte: fourMonthsAgo } },
-      { lastRemindedAt: null },
-    ],
-  });
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    [year, month, day] = value.split("-").map(Number);
+  } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
+    [day, month, year] = value.split("/").map(Number);
+  } else {
+    return null;
+  }
 
-  // console.log("Found warranties:", warranties.length);
+  const date = new Date(Date.UTC(year, month - 1, day));
 
-  for (const warranty of warranties) {
-    // Basic email validation
-    if (!warranty.userEmail || !warranty.userEmail.includes("@")) {
-      // console.log("Skipping invalid email:", warranty.userEmail);
-      continue;
-    }
-    // console.log("Sending email to:", warranty.userEmail);
-    await transporter.sendMail({
-      to: warranty.userEmail,
-      subject: "Friendly Reminder: Your Warranty is Ending Soon",
-      text: `Hi there,
-      Just a quick heads-up! The warranty for ${warranty.productName.productCategory} is set to expire on ${warranty.warrantyEndDate}.
-      We recommend checking your coverage and preparing any service requests if needed.
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    return null;
+  }
 
-      – Warranty Reminder App`,
+  return date;
+};
+
+cron.schedule("* * * * *", async () => {
+  try {
+    const now = new Date();
+
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+
+    const fourMonthsAgo = new Date();
+    fourMonthsAgo.setMonth(fourMonthsAgo.getMonth() - 4);
+
+    const allWarranties = await Warranty.find({});
+
+    console.log("Total records:", allWarranties.length);
+
+    const warranties = allWarranties.filter((item) => {
+      const expiryDate = parseWarrantyDate(item.warrantyEndDate);
+
+      if (!expiryDate || expiryDate < today) return false;
+
+      return (
+        !item.lastRemindedAt || new Date(item.lastRemindedAt) <= fourMonthsAgo
+      );
     });
 
-    warranty.lastRemindedAt = now;
-    await warranty.save();
+    console.log("Eligible warranties:", warranties.length);
+
+    for (const warranty of warranties) {
+      if (
+        !warranty.userEmail ||
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(warranty.userEmail)
+      ) {
+        console.log("Skipping invalid email:", warranty.userEmail);
+        continue;
+      }
+
+      const productName =
+        warranty.productName?.fullLine ||
+        warranty.productName?.productCategory ||
+        "your product";
+
+      console.log("Sending reminder to:", warranty.userEmail);
+
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: warranty.userEmail,
+        subject: "Friendly Reminder: Your Warranty is Ending Soon",
+        text: `Hi there,
+
+Just a quick heads-up! The warranty for ${productName} is set to expire on ${warranty.warrantyEndDate}.
+
+We recommend checking your coverage and preparing any service requests if needed.
+
+– Warranty Reminder App`,
+      });
+
+      warranty.lastRemindedAt = now;
+      await warranty.save();
+
+      console.log("Reminder sent successfully:", warranty.userEmail);
+    }
+  } catch (error) {
+    console.error("REMINDER CRON ERROR:", error);
   }
 });

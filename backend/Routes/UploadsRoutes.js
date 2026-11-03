@@ -222,23 +222,42 @@ router.post(
       }
 
       // 3. Calculate warranty end date
+      // 3. Calculate warranty end date
       if (purchaseDate && warrantyPeriod) {
-        let endDate;
+        let day, month, year;
 
-        if (purchaseDate.includes("/")) {
-          const [day, month, year] = purchaseDate.split(/[\/\-]/).map(Number);
-          endDate = new Date(year, month - 1, day);
+        // Parse DD/MM/YYYY or DD-MM-YYYY
+        const numericDateMatch = purchaseDate.match(
+          /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/,
+        );
+
+        if (numericDateMatch) {
+          [, day, month, year] = numericDateMatch.map(Number);
         } else {
-          endDate = new Date(purchaseDate);
+          // Parse dates such as Nov 3, 2026
+          const parsedDate = new Date(purchaseDate);
+
+          if (!Number.isNaN(parsedDate.getTime())) {
+            day = parsedDate.getUTCDate();
+            month = parsedDate.getUTCMonth() + 1;
+            year = parsedDate.getUTCFullYear();
+          }
         }
 
-        if (warrantyPeriod.unit.toLowerCase().startsWith("year")) {
-          endDate.setFullYear(endDate.getFullYear() + warrantyPeriod.value);
-        } else if (warrantyPeriod.unit.toLowerCase().startsWith("month")) {
-          endDate.setMonth(endDate.getMonth() + warrantyPeriod.value);
-        }
+        if (day && month && year) {
+          // Use UTC to avoid timezone shifting
+          const endDate = new Date(Date.UTC(year, month - 1, day));
 
-        warrantyEndDate = endDate.toISOString().slice(0, 10);
+          if (warrantyPeriod.unit.toLowerCase().startsWith("year")) {
+            endDate.setUTCFullYear(
+              endDate.getUTCFullYear() + warrantyPeriod.value,
+            );
+          } else if (warrantyPeriod.unit.toLowerCase().startsWith("month")) {
+            endDate.setUTCMonth(endDate.getUTCMonth() + warrantyPeriod.value);
+          }
+
+          warrantyEndDate = endDate.toISOString().slice(0, 10);
+        }
       }
 
       // test
@@ -302,25 +321,40 @@ router.get("/myfiles", async (req, res) => {
 router.delete("/delete/:id", async (req, res) => {
   try {
     const fileId = req.params.id;
+
     const file = await warranty.findById(fileId);
+
     if (!file) {
-      return res.status(404).json({ message: "File not found !!!!" });
+      return res.status(404).json({
+        message: "Warranty record not found.",
+      });
     }
 
-    // delete from uploaded folder
-    const filePath = path.join(__dirname, "../uploads", file.fileName);
+    // Delete the invoice file only if one exists
+    if (file.fileName) {
+      const filePath = path.join(
+        __dirname,
+        "../uploads",
+        path.basename(file.fileName),
+      );
 
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
     }
 
-    // delete form db
+    // Delete the warranty record from MongoDB
     await warranty.findByIdAndDelete(fileId);
 
-    res.json({ message: "File deleted successfully" });
-  } catch (err) {
-    console.error("DELETE ERROR:", err);
-    res.status(500).json({ message: "Server error while deleting file" });
+    return res.status(200).json({
+      message: "Warranty deleted successfully.",
+    });
+  } catch (error) {
+    console.error("DELETE ERROR:", error);
+
+    return res.status(500).json({
+      message: "Server error while deleting warranty.",
+    });
   }
 });
 

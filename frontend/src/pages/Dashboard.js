@@ -18,7 +18,7 @@ import {
   Trash2,
 } from "lucide-react";
 
-const API_BASE_URL = "https://warranty-reminder-app.onrender.com";
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -45,6 +45,8 @@ function Dashboard() {
 
   const [files, setFiles] = useState([]);
   const [isLoadingFiles, setIsLoadingFiles] = useState(true);
+
+  const [deletingId, setDeletingId] = useState(null);
 
   // Authentication check
   useEffect(() => {
@@ -98,20 +100,70 @@ function Dashboard() {
     }
   };
 
+  // Delete a warranty record
+  const handleDelete = async (fileId) => {
+    setDeletingId(fileId);
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/dashboard/delete/${fileId}`, {
+        method: "DELETE",
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to delete warranty.");
+      }
+
+      setFiles((prevFiles) => prevFiles.filter((file) => file._id !== fileId));
+
+      toast.success(data.message || "Warranty deleted successfully.");
+    } catch (error) {
+      console.error("DELETE ERROR:", error);
+      toast.error(error.message || "Unable to delete warranty.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   // cal warranty stats
   const getDaysUntilExpiry = (dateString) => {
     if (!dateString) return null;
 
-    const expiryDate = new Date(`${dateString}T00:00:00`);
+    let expiryDate;
+
+    // Handle DD/MM/YYYY
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateString)) {
+      const [day, month, year] = dateString.split("/").map(Number);
+      expiryDate = new Date(year, month - 1, day);
+    }
+    // Handle YYYY-MM-DD
+    else if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+      const [year, month, day] = dateString.split("-").map(Number);
+      expiryDate = new Date(year, month - 1, day);
+    } else {
+      return null;
+    }
 
     if (Number.isNaN(expiryDate.getTime())) return null;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    expiryDate.setHours(0, 0, 0, 0);
 
     return Math.ceil(
       (expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
     );
+  };
+
+  const getWarrantyStatus = (file) => {
+    const days = getDaysUntilExpiry(file.warrantyEndDate);
+
+    if (days === null) return "Unknown";
+    if (days < 0) return "Expired";
+    if (days <= 30) return "Expiring Soon";
+
+    return "Active";
   };
 
   const getProductName = (file) =>
@@ -275,6 +327,23 @@ function Dashboard() {
   const handleConfirmSave = async () => {
     if (saveLock.current) return;
 
+    // Validate required fields
+    if (!extractedData.productName?.trim()) {
+      toast.error("Please enter the product name.");
+      return;
+    }
+
+    if (!extractedData.purchaseDate) {
+      toast.error("Please enter the purchase date.");
+      return;
+    }
+
+    if (!extractedData.warrantyEndDate) {
+      toast.error("Please enter the warranty end date.");
+      return;
+    }
+
+    saveLock.current = true;
     saveLock.current = true;
     setIsSaving(true);
 
@@ -635,30 +704,42 @@ function Dashboard() {
                     </td>
                   </tr>
                 ) : (
-                  files.map((file) => (
-                    <tr key={file._id}>
-                      <td>
-                        <strong>{getProductName(file)}</strong>
+                  files.map((file) => {
+                    const status = getWarrantyStatus(file);
 
-                        <small>Purchased: {file.purchaseDate || "N/A"}</small>
-                      </td>
+                    return (
+                      <tr key={file._id}>
+                        <td>
+                          <strong>{getProductName(file)}</strong>
+                          <small>Purchased: {file.purchaseDate || "N/A"}</small>
+                        </td>
 
-                      <td>{file.warrantyEndDate || "N/A"}</td>
+                        <td>{file.warrantyEndDate || "N/A"}</td>
 
-                      <td>—</td>
+                        <td>
+                          <span
+                            className={`warranty-status warranty-status-${status
+                              .toLowerCase()
+                              .replace(/\s+/g, "-")}`}
+                          >
+                            {status}
+                          </span>
+                        </td>
 
-                      <td>
-                        <button
-                          type="button"
-                          className="dashboard-delete-btn"
-                          disabled
-                        >
-                          <Trash2 size={15} />
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                        <td>
+                          <button
+                            type="button"
+                            className="dashboard-delete-btn"
+                            onClick={() => handleDelete(file._id)}
+                            disabled={deletingId === file._id}
+                          >
+                            <Trash2 size={15} />
+                            {deletingId === file._id ? "Deleting..." : "Delete"}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>

@@ -728,3 +728,35 @@
   color: var(--dash-muted);
   font-size: 13px;
 }
+
+/* Warranty status badges */
+
+.warranty-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.warranty-status-active {
+  background-color: #e7f3e8;
+  color: #287a3d;
+}
+
+.warranty-status-expiring-soon {
+  background-color: #fff2d9;
+  color: #a66a00;
+}
+
+.warranty-status-expired {
+  background-color: #fde8e7;
+  color: #c0392b;
+}
+
+.warranty-status-unknown {
+  background-color: #eeeeee;
+  color: #666666;
+}
