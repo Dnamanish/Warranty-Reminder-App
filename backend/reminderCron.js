@@ -36,7 +36,7 @@ const parseWarrantyDate = (value) => {
   return date;
 };
 
-cron.schedule("* * * * *", async () => {
+cron.schedule("0 0 1 * *", async () => {
   try {
     const now = new Date();
 
@@ -48,7 +48,6 @@ cron.schedule("* * * * *", async () => {
 
     const allWarranties = await Warranty.find({});
 
-    console.log("Total records:", allWarranties.length);
 
     const warranties = allWarranties.filter((item) => {
       const expiryDate = parseWarrantyDate(item.warrantyEndDate);
@@ -60,14 +59,13 @@ cron.schedule("* * * * *", async () => {
       );
     });
 
-    console.log("Eligible warranties:", warranties.length);
 
     for (const warranty of warranties) {
       if (
         !warranty.userEmail ||
         !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(warranty.userEmail)
       ) {
-        console.log("Skipping invalid email:", warranty.userEmail);
+        // console.log("Skipping invalid email:", warranty.userEmail);
         continue;
       }
 
@@ -76,7 +74,7 @@ cron.schedule("* * * * *", async () => {
         warranty.productName?.productCategory ||
         "your product";
 
-      console.log("Sending reminder to:", warranty.userEmail);
+      // console.log("Sending reminder to:", warranty.userEmail);
 
       await transporter.sendMail({
         from: process.env.EMAIL_USER,
@@ -94,7 +92,7 @@ We recommend checking your coverage and preparing any service requests if needed
       warranty.lastRemindedAt = now;
       await warranty.save();
 
-      console.log("Reminder sent successfully:", warranty.userEmail);
+      // console.log("Reminder sent successfully:", warranty.userEmail);
     }
   } catch (error) {
     console.error("REMINDER CRON ERROR:", error);

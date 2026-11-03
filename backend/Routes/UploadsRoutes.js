@@ -1,15 +1,13 @@
 const express = require("express");
 const multer = require("multer");
-const app = express();
 const path = require("path");
 const router = express.Router();
 const pdfParse = require("pdf-parse");
 const tesseract = require("tesseract.js");
 const fs = require("fs");
 const warranty = require("../models/warranty");
-const { log } = require("console");
 
-// storage for multer
+// Multer storage configuration
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, "uploads/");
@@ -18,10 +16,11 @@ const storage = multer.diskStorage({
     cb(null, Date.now() + path.extname(file.originalname));
   },
 });
+
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5 MB maximum
+    fileSize: 5 * 1024 * 1024,
   },
   fileFilter: (req, file, cb) => {
     const allowedTypes = ["application/pdf", "image/jpeg", "image/png"];
@@ -34,7 +33,27 @@ const upload = multer({
   },
 });
 
-// helper function to get product name
+// Convert number words into numbers
+function wordToNumber(word) {
+  const numbers = {
+    one: 1,
+    two: 2,
+    three: 3,
+    four: 4,
+    five: 5,
+    six: 6,
+    seven: 7,
+    eight: 8,
+    nine: 9,
+    ten: 10,
+    eleven: 11,
+    twelve: 12,
+  };
+
+  return numbers[word.toLowerCase()] || null;
+}
+
+// Extract product name
 function extractProductName(text) {
   const productKeywords = [
     "Refrigerator",
@@ -100,7 +119,7 @@ function extractProductName(text) {
 
   const lines = text
     .split(/\r?\n/)
-    .map((l) => l.trim())
+    .map((line) => line.trim())
     .filter(Boolean);
 
   for (const keyword of productKeywords) {
@@ -110,7 +129,7 @@ function extractProductName(text) {
       if (lines[i].toLowerCase().includes(keyLower)) {
         let fullLine = lines[i];
 
-        if (i > 0 && !lines[i - 1].match(/qty|price|mrp|amount/i)) {
+        if (i > 0 && !/qty|price|mrp|amount/i.test(lines[i - 1])) {
           fullLine = lines[i - 1] + " " + fullLine;
         }
 
@@ -119,20 +138,15 @@ function extractProductName(text) {
           "",
         );
 
-        // NEW RULES
-        fullLine = fullLine.replace(/^\d+\./, ""); // remove "1."
-        fullLine = fullLine.replace(/\d+%.*$/, ""); // remove "18%1"
-        fullLine = fullLine.replace(/₹.*$/, ""); // remove prices
-        fullLine = fullLine.replace(/([A-Za-z])\d+$/, "$1"); // Laptop1 -> Laptop
-
+        fullLine = fullLine.replace(/^\d+\.\s*/, "");
+        fullLine = fullLine.replace(/\d+%.*$/, "");
+        fullLine = fullLine.replace(/₹.*$/, "");
+        fullLine = fullLine.replace(/([A-Za-z])\d+$/, "$1");
         fullLine = fullLine.replace(/\s+/g, " ").trim();
 
-        console.log("MATCHED KEYWORD:", keyword);
-        console.log("MATCHED LINE:", lines[i]);
-
         return {
-          fullLine: fullLine, // full product name
-          productCategory: keyword, // matching keyword
+          fullLine: fullLine,
+          productCategory: keyword,
         };
       }
     }
@@ -144,6 +158,7 @@ function extractProductName(text) {
   };
 }
 
+// Upload and extract invoice information
 router.post(
   "/upload",
   (req, res, next) => {
@@ -168,8 +183,11 @@ router.post(
   },
   async (req, res) => {
     if (!req.file) {
-      return res.status(400).json({ message: "No file uploaded" });
+      return res.status(400).json({
+        message: "No file uploaded",
+      });
     }
+
     let purchaseDate = null;
     let warrantyPeriod = null;
     let warrantyEndDate = null;
@@ -177,7 +195,6 @@ router.post(
 
     try {
       if (req.file.mimetype === "application/pdf") {
-        // agr pdf h to text extract krega
         const dataBuffer = fs.readFileSync(req.file.path);
         const data = await pdfParse(dataBuffer);
         text = data.text;
@@ -186,15 +203,13 @@ router.post(
         text = result.data.text;
       }
 
-      // extract product name
+      // Extract product name
       const productName = extractProductName(text);
 
-      // extract purchased date first
-      // DD/MM/YYYY or DD-MM-YYYY
-      let purchaseDateMatch = text.match(/\b\d{2}[\/\-]\d{2}[\/\-]\d{4}\b/);
+      // Extract purchase date
+      let purchaseDateMatch = text.match(/\b\d{2}[/-]\d{2}[/-]\d{4}\b/);
 
       if (!purchaseDateMatch) {
-        // Month name dates
         purchaseDateMatch = text.match(
           /(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4}/i,
         );
@@ -202,39 +217,44 @@ router.post(
 
       purchaseDate = purchaseDateMatch ? purchaseDateMatch[0] : null;
 
-      // extract warranty period
+      // Extract warranty period
       const numYearMatch = text.match(/(\d+)\s*(year|month)s?/i);
+
       if (numYearMatch) {
         warrantyPeriod = {
-          value: parseInt(numYearMatch[1]),
+          value: parseInt(numYearMatch[1], 10),
           unit: numYearMatch[2],
         };
       } else {
         const wordYearMatch = text.match(
           /(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s*(year|month)s?/i,
         );
+
         if (wordYearMatch) {
           const num = wordToNumber(wordYearMatch[1]);
+
           if (num) {
-            warrantyPeriod = { value: num, unit: wordYearMatch[2] };
+            warrantyPeriod = {
+              value: num,
+              unit: wordYearMatch[2],
+            };
           }
         }
       }
 
-      // 3. Calculate warranty end date
-      // 3. Calculate warranty end date
+      // Calculate warranty end date
       if (purchaseDate && warrantyPeriod) {
         let day, month, year;
 
-        // Parse DD/MM/YYYY or DD-MM-YYYY
         const numericDateMatch = purchaseDate.match(
           /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/,
         );
 
         if (numericDateMatch) {
-          [, day, month, year] = numericDateMatch.map(Number);
+          day = Number(numericDateMatch[1]);
+          month = Number(numericDateMatch[2]);
+          year = Number(numericDateMatch[3]);
         } else {
-          // Parse dates such as Nov 3, 2026
           const parsedDate = new Date(purchaseDate);
 
           if (!Number.isNaN(parsedDate.getTime())) {
@@ -245,7 +265,6 @@ router.post(
         }
 
         if (day && month && year) {
-          // Use UTC to avoid timezone shifting
           const endDate = new Date(Date.UTC(year, month - 1, day));
 
           if (warrantyPeriod.unit.toLowerCase().startsWith("year")) {
@@ -260,36 +279,16 @@ router.post(
         }
       }
 
-      // test
-      console.log("Purchase Date:", purchaseDate);
-      console.log("Warranty Period:", warrantyPeriod);
-      console.log("Warranty End:", warrantyEndDate);
-      console.log("DATE MATCH:", purchaseDateMatch);
-
-      // await warranty.create({
-      //   userEmail: req.body.email ||,
-      //   fileName: req.file.filename,
-      //   originalName: req.file.originalname,
-      //   warrantyEndDate: warrantyEndDate,
-      //   purchaseDate,
-      //   productName: {
-      //     fullLine: productName.fullLine,
-      //     productCategory: productName.productCategory,
-      //   },
-      //   notified: false,
-      // });
-
-      res.status(200).json({
+      return res.status(200).json({
         message: "File uploaded and info extracted",
         productCategory: productName.productCategory,
         productFullName: productName.fullLine,
-
         purchaseDate,
         warrantyPeriod: warrantyPeriod
           ? `${warrantyPeriod.value} ${warrantyPeriod.unit}`
           : null,
         warrantyEndDate,
-        textPreview: text, // text.substring(0, 200)
+        textPreview: text,
       });
     } catch (error) {
       console.error("Error processing uploaded file:", error);
@@ -302,22 +301,32 @@ router.post(
   },
 );
 
-/// for getting user previously uploaded files
+// Get user's previously uploaded warranties
 router.get("/myfiles", async (req, res) => {
   try {
     const email = req.query.email;
+
     if (!email) {
-      return res.status(400).json({ message: "email required" });
+      return res.status(400).json({
+        message: "email required",
+      });
     }
 
-    const files = await warranty.find({ userEmail: email });
-    res.json(files);
+    const files = await warranty.find({
+      userEmail: email,
+    });
+
+    return res.json(files);
   } catch (err) {
-    res.status(500).json({ message: "Server error" });
+    console.error("FETCH WARRANTIES ERROR:", err);
+
+    return res.status(500).json({
+      message: "Server error",
+    });
   }
 });
 
-// for deleting previously uploaded files
+// Delete a warranty
 router.delete("/delete/:id", async (req, res) => {
   try {
     const fileId = req.params.id;
@@ -330,7 +339,7 @@ router.delete("/delete/:id", async (req, res) => {
       });
     }
 
-    // Delete the invoice file only if one exists
+    // Delete invoice file if it exists
     if (file.fileName) {
       const filePath = path.join(
         __dirname,
@@ -343,7 +352,6 @@ router.delete("/delete/:id", async (req, res) => {
       }
     }
 
-    // Delete the warranty record from MongoDB
     await warranty.findByIdAndDelete(fileId);
 
     return res.status(200).json({
@@ -358,9 +366,9 @@ router.delete("/delete/:id", async (req, res) => {
   }
 });
 
+// Save warranty information
 router.post("/saveWarranty", async (req, res) => {
   try {
-    console.log(req.body);
     await warranty.create({
       userEmail: req.body.email,
       purchaseDate: req.body.purchaseDate,
@@ -372,14 +380,16 @@ router.post("/saveWarranty", async (req, res) => {
       notified: false,
     });
 
-    res.json({
+    return res.json({
       message: "Warranty saved successfully",
     });
-  } catch (e) {
-    console.log("ERROR:", e);
-    res
-      .status(500)
-      .json({ message: "Error saving warranty !", error: e.message });
+  } catch (error) {
+    console.error("SAVE WARRANTY ERROR:", error);
+
+    return res.status(500).json({
+      message: "Error saving warranty!",
+      error: error.message,
+    });
   }
 });
 

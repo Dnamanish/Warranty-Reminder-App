@@ -93,7 +93,7 @@ function Dashboard() {
 
       setFiles(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error("FETCH WARRANTIES ERROR:", error);
+      // console.error("FETCH WARRANTIES ERROR:", error);
       toast.error(error.message || "Unable to load warranties.");
     } finally {
       setIsLoadingFiles(false);
@@ -119,7 +119,7 @@ function Dashboard() {
 
       toast.success(data.message || "Warranty deleted successfully.");
     } catch (error) {
-      console.error("DELETE ERROR:", error);
+      // console.error("DELETE ERROR:", error);
       toast.error(error.message || "Unable to delete warranty.");
     } finally {
       setDeletingId(null);
@@ -304,7 +304,7 @@ function Dashboard() {
 
       setShowConfirmation(true);
     } catch (error) {
-      console.error("UPLOAD ERROR:", error);
+      // console.error("UPLOAD ERROR:", error);
 
       toast.error("Upload failed. Please check your connection and try again.");
     } finally {
@@ -378,7 +378,7 @@ function Dashboard() {
         inputRef.current.value = "";
       }
     } catch (error) {
-      console.error("SAVE ERROR:", error);
+      // console.error("SAVE ERROR:", error);
 
       toast.error("Unable to save warranty. Please try again.");
     } finally {

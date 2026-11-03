@@ -25,5 +25,5 @@ app.use("/auth", AuthRouter);
 app.use("/dashboard", UploadRouter);
 
 app.listen(PORT, () => {
-  console.log(`server is running ${PORT}`);
+  // console.log(`server is running ${PORT}`);
 });

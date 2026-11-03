@@ -2,8 +2,8 @@ const mongoose = require("mongoose");
 
 const WarrantySchema = new mongoose.Schema({
   userEmail: { type: String, required: true },
-  fileName: { type: String, required: null },
-  warrantyEndDate: { type: String, required: null }, 
+  fileName: { type: String, default: null },
+  warrantyEndDate: { type: String, default: null },
   notified: { type: Boolean, default: false },
   lastRemindedAt: { type: Date, default: null },
   purchaseDate: { type: String, default: null },

@@ -41,7 +41,7 @@ const Signup = () => {
     try {
       // const url = "https://warranty-reminder-app.onrender.com/auth/signup";
 
-      const url = "http://localhost:8080/auth/signup";
+      const url = `${process.env.REACT_APP_API_BASE_URL}/auth/signup`;
 
       const response = await fetch(url, {
         method: "POST",
