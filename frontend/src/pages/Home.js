@@ -292,7 +292,7 @@ const Home = () => {
                 <span>TV</span>
               </div>
               {/* <i className="fa-solid fa-soap wr-aud-art"></i> */}
-              <img src={Home_Ref} />
+              <img src={Home_Ref} alt="Warranty management illustration" />
             </div>
             <div className="wr-card wr-aud">
               <span className="wr-icon">
