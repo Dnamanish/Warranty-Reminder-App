@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+
 import "../Dashboard.css";
 import { useNavigate } from "react-router-dom";
 import { isTokenExpired, logout } from "../utils/tokenUtils";
@@ -14,7 +15,6 @@ import {
   CloudUpload,
   FileText,
   Mail,
-  Package,
   Trash2,
 } from "lucide-react";
 
@@ -45,7 +45,6 @@ function Dashboard() {
 
   const [files, setFiles] = useState([]);
   const [isLoadingFiles, setIsLoadingFiles] = useState(true);
-
   const [deletingId, setDeletingId] = useState(null);
 
   // Authentication check
@@ -72,7 +71,7 @@ function Dashboard() {
   const username = user.name || "User";
 
   // Fetch warranties belonging to the logged-in user
-  const fetchUserFiles = async () => {
+  const fetchUserFiles = useCallback(async () => {
     if (!user.email) {
       setIsLoadingFiles(false);
       return;
@@ -82,7 +81,9 @@ function Dashboard() {
 
     try {
       const res = await fetch(
-        `${API_BASE_URL}/dashboard/myfiles?email=${encodeURIComponent(user.email)}`,
+        `${API_BASE_URL}/dashboard/myfiles?email=${encodeURIComponent(
+          user.email,
+        )}`,
       );
 
       const data = await res.json();
@@ -93,12 +94,12 @@ function Dashboard() {
 
       setFiles(Array.isArray(data) ? data : []);
     } catch (error) {
-      // console.error("FETCH WARRANTIES ERROR:", error);
+      console.error("FETCH WARRANTIES ERROR:", error);
       toast.error(error.message || "Unable to load warranties.");
     } finally {
       setIsLoadingFiles(false);
     }
-  };
+  }, [user.email]);
 
   // Delete a warranty record
   const handleDelete = async (fileId) => {
@@ -119,14 +120,14 @@ function Dashboard() {
 
       toast.success(data.message || "Warranty deleted successfully.");
     } catch (error) {
-      // console.error("DELETE ERROR:", error);
+      console.error("DELETE ERROR:", error);
       toast.error(error.message || "Unable to delete warranty.");
     } finally {
       setDeletingId(null);
     }
   };
 
-  // cal warranty stats
+  // Calculate warranty statistics
   const getDaysUntilExpiry = (dateString) => {
     if (!dateString) return null;
 
@@ -135,11 +136,13 @@ function Dashboard() {
     // Handle DD/MM/YYYY
     if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateString)) {
       const [day, month, year] = dateString.split("/").map(Number);
+
       expiryDate = new Date(year, month - 1, day);
     }
     // Handle YYYY-MM-DD
     else if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
       const [year, month, day] = dateString.split("-").map(Number);
+
       expiryDate = new Date(year, month - 1, day);
     } else {
       return null;
@@ -192,10 +195,10 @@ function Dashboard() {
     return days !== null && days < 0;
   });
 
-  // Fetch after the dashboard loads
+  // Fetch warranties when the dashboard loads
   useEffect(() => {
     fetchUserFiles();
-  }, [user.email]);
+  }, [fetchUserFiles]);
 
   // File validation
   const validateAndSetFile = (file, inputElement = null) => {
@@ -304,7 +307,7 @@ function Dashboard() {
 
       setShowConfirmation(true);
     } catch (error) {
-      // console.error("UPLOAD ERROR:", error);
+      console.error("UPLOAD ERROR:", error);
 
       toast.error("Upload failed. Please check your connection and try again.");
     } finally {
@@ -344,7 +347,6 @@ function Dashboard() {
     }
 
     saveLock.current = true;
-    saveLock.current = true;
     setIsSaving(true);
 
     try {
@@ -378,7 +380,7 @@ function Dashboard() {
         inputRef.current.value = "";
       }
     } catch (error) {
-      // console.error("SAVE ERROR:", error);
+      console.error("SAVE ERROR:", error);
 
       toast.error("Unable to save warranty. Please try again.");
     } finally {
